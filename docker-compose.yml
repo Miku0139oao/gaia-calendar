@@ -1,0 +1,32 @@
+name: gaia-calendar
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-gaia_calendar}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change-me}
+      POSTGRES_DB: ${POSTGRES_DB:-gaia_calendar}
+    volumes:
+      - ./volumes/postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-gaia_calendar} -d ${POSTGRES_DB:-gaia_calendar}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  app:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    env_file:
+      - .env
+    environment:
+      APP_ADDR: :8080
+      FRONTEND_DIR: /app/frontend/dist
+      DATABASE_URL: postgres://${POSTGRES_USER:-gaia_calendar}:${POSTGRES_PASSWORD:-change-me}@postgres:5432/${POSTGRES_DB:-gaia_calendar}?sslmode=disable
+    ports:
+      - "127.0.0.1:8080:8080"

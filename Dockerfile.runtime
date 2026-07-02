@@ -1,0 +1,15 @@
+FROM alpine:3.22
+
+WORKDIR /app
+RUN adduser -D -H appuser
+
+COPY dist/deploy/gaia-calendar /app/gaia-calendar
+COPY dist/deploy/frontend/dist /app/frontend/dist
+RUN mkdir -p /app/data && chmod +x /app/gaia-calendar && chown -R appuser:appuser /app
+
+ENV APP_ADDR=:8080
+ENV FRONTEND_DIR=/app/frontend/dist
+
+USER appuser
+EXPOSE 8080
+CMD ["/app/gaia-calendar"]

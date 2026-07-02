@@ -1,0 +1,17 @@
+.env
+.idea/
+.superpowers/
+data/
+dist/
+bin/
+tmp/
+node_modules/
+frontend/node_modules/
+frontend/dist/
+ent/migrate/migrations/
+*.log
+*.exe
+*.db
+*.sqlite
+*.sqlite3
+volumes/

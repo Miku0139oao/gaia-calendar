@@ -1,0 +1,19 @@
+name: gaia-calendar-sqlite
+
+services:
+  app:
+    build: .
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      APP_ADDR: :8080
+      FRONTEND_DIR: /app/frontend/dist
+      DATABASE_URL: sqlite:///app/data/gaia-calendar.db
+    volumes:
+      - gaia-calendar-sqlite-data:/app/data
+    ports:
+      - "127.0.0.1:8080:8080"
+
+volumes:
+  gaia-calendar-sqlite-data:
