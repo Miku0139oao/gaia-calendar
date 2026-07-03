@@ -46,6 +46,10 @@ type userResponse struct {
 	Role          string `json:"role"`
 }
 
+type publicConfigResponse struct {
+	EmailVerificationRequired bool `json:"emailVerificationRequired"`
+}
+
 type scheduleResponse struct {
 	ID        int                       `json:"id"`
 	ShiftDate string                    `json:"shiftDate"`

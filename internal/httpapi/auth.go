@@ -38,15 +38,21 @@ func (s *Server) handleRegister(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "failed to hash password")
 		return
 	}
-	u, err := s.db.User.Create().SetEmail(email).SetPasswordHash(passwordHash).Save(r.Context())
+	u, err := s.db.User.Create().
+		SetEmail(email).
+		SetPasswordHash(passwordHash).
+		SetEmailVerified(!s.cfg.EmailVerificationRequired).
+		Save(r.Context())
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "failed to create user")
 		return
 	}
-	if err := s.createAndSendVerificationCode(r, u, email, req.Locale); err != nil {
-		logHTTPError(err)
-		writeError(w, http.StatusBadGateway, "failed to send verification email")
-		return
+	if s.cfg.EmailVerificationRequired {
+		if err := s.createAndSendVerificationCode(r, u, email, req.Locale); err != nil {
+			logHTTPError(err)
+			writeError(w, http.StatusBadGateway, "failed to send verification email")
+			return
+		}
 	}
 	writeJSON(w, http.StatusCreated, map[string]any{"ok": true, "user": userDTO(u)})
 }

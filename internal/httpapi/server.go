@@ -96,6 +96,7 @@ func (s *Server) Handler() http.Handler {
 }
 
 func (s *Server) routes() {
+	s.mux.HandleFunc("GET /api/config", s.handlePublicConfig)
 	s.mux.HandleFunc("POST /api/auth/register", s.handleRegister)
 	s.mux.HandleFunc("POST /api/auth/verify", s.handleVerify)
 	s.mux.HandleFunc("POST /api/auth/login", s.handleLogin)
@@ -114,6 +115,12 @@ func (s *Server) routes() {
 	s.mux.Handle("DELETE /api/sync-runs/", s.auth(http.HandlerFunc(s.handleDeleteSyncRun)))
 	s.mux.HandleFunc("GET /calendar/", s.handleCalendarFeed)
 	s.mux.HandleFunc("/", s.handleFrontend)
+}
+
+func (s *Server) handlePublicConfig(w http.ResponseWriter, r *http.Request) {
+	writeJSON(w, http.StatusOK, publicConfigResponse{
+		EmailVerificationRequired: s.cfg.EmailVerificationRequired,
+	})
 }
 
 func (s *Server) auth(next http.Handler) http.Handler {

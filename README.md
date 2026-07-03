@@ -47,6 +47,25 @@ The default `DATABASE_URL` in `.env.example` uses SQLite:
 DATABASE_URL=sqlite://data/gaia-calendar.db
 ```
 
+For a copy-and-run example, use the SQLite demo environment:
+
+```bash
+cp examples/.env.sqlite.example .env
+bun --cwd frontend install
+bun --cwd frontend run build
+go run ./cmd/server
+```
+
+This starts the app locally with a SQLite database under `data/`. The SQLite demo environment disables email verification so new users can register without configuring email. To try password reset and Gaia roster sync, fill in your own Cloudflare email credentials and your own Gaia company code, employee account, and password. The sample Gaia values in `examples/gaia-demo-values.md` are placeholders for documentation and screenshots only.
+
+For local trials without email, set:
+
+```env
+AUTH_EMAIL_VERIFICATION_REQUIRED=false
+```
+
+When this is disabled, newly registered users are marked verified immediately. Keep it enabled for public deployments unless you intentionally want open registration without email verification.
+
 ## PostgreSQL
 
 Use PostgreSQL for multi-user or long-running production deployments:
@@ -92,7 +111,9 @@ CLOUDFLARE_EMAIL_API_TOKEN=
 CLOUDFLARE_EMAIL_FROM=no-reply@example.com
 ```
 
-If email is not configured, registration and password reset requests will fail with an email configuration error. This is intentional so accounts are not created without a usable verification path.
+When `AUTH_EMAIL_VERIFICATION_REQUIRED=true`, registration sends a verification code and will fail if email is not configured. Password reset always requires email because the reset link must be delivered somewhere.
+
+For local demo installs, `AUTH_EMAIL_VERIFICATION_REQUIRED=false` lets users register without a verification email. Password reset still requires email because the reset link must be delivered somewhere.
 
 ## Gaia Configuration
 
@@ -159,6 +180,8 @@ For local-build deployment to a small VPS:
 powershell -ExecutionPolicy Bypass -File .\scripts\deploy-local.ps1 -Remote root@example.com -RemoteDir /opt/gaia-calendar
 ```
 
+See `examples/.env.postgres.example` and `examples/caddy.example.Caddyfile` for public deployment templates.
+
 ## API Overview
 
 - `POST /api/auth/register`
@@ -218,6 +241,25 @@ go run ./cmd/server
 
 開啟 `http://localhost:8080`。
 
+如果想用一份可以直接複製的本機試用範例：
+
+```bash
+cp examples/.env.sqlite.example .env
+bun --cwd frontend install
+bun --cwd frontend run build
+go run ./cmd/server
+```
+
+這會在本機以 SQLite 啟動，資料庫放在 `data/`。SQLite demo 設定預設關閉 Email 驗證，所以新使用者可以不用先設定寄信服務就註冊。若要試忘記密碼和 Gaia 排班同步，請填入自己的 Cloudflare email 設定，以及自己的 Gaia 公司代碼、員工帳號和密碼。`examples/gaia-demo-values.md` 裡的 Gaia 資料只是文件與截圖用的假資料。
+
+本機試用時可以關閉 Email 驗證：
+
+```env
+AUTH_EMAIL_VERIFICATION_REQUIRED=false
+```
+
+關閉後，新註冊使用者會直接標記為已驗證。公開部署除非刻意開放免驗證註冊，否則建議保持啟用。
+
 ## PostgreSQL 正式部署
 
 `.env` 可改成：
@@ -248,12 +290,15 @@ docker compose -f docker-compose.sqlite.yml up -d --build
 APP_BASE_URL=https://calendar.example.com
 SESSION_SECRET=replace-with-random-secret
 CREDENTIAL_ENCRYPTION_KEY=replace-with-random-secret
+AUTH_EMAIL_VERIFICATION_REQUIRED=true
 CLOUDFLARE_EMAIL_ACCOUNT_ID=
 CLOUDFLARE_EMAIL_API_TOKEN=
 CLOUDFLARE_EMAIL_FROM=no-reply@example.com
 ```
 
 `GAIA_DEFAULT_COMPANY_CODE` 可以留空，讓使用者自行輸入公司代碼。
+
+如果只是本機 demo，可以設 `AUTH_EMAIL_VERIFICATION_REQUIRED=false`，註冊就不需要寄驗證碼；忘記密碼仍需要 email 設定，因為重設連結必須寄出。
 
 當 `APP_BASE_URL` 是非 localhost 網域時，如果 `SESSION_SECRET` 或 `CREDENTIAL_ENCRYPTION_KEY` 仍是開發預設值，伺服器會拒絕啟動。
 
@@ -275,3 +320,5 @@ calendar.example.com {
 	reverse_proxy 127.0.0.1:8080
 }
 ```
+
+公開部署可參考 `examples/.env.postgres.example` 和 `examples/caddy.example.Caddyfile`。

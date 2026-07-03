@@ -10,6 +10,7 @@
   type Locale = 'zh-HK' | 'en'
   type Theme = 'light' | 'dark'
   type AuthMode = 'login' | 'register' | 'verify' | 'forgot' | 'reset'
+  type PublicConfig = { emailVerificationRequired: boolean }
 
   const messages = {
     'zh-HK': {
@@ -37,6 +38,7 @@
       resetHint: '輸入註冊 Email，我會寄出此服務網域的一次性重設連結。',
       resetTokenMissing: '重設連結缺少 token，請重新申請。',
       codeSent: '驗證碼已寄出，請檢查你的 Email。',
+      accountCreated: '帳號已建立，可以登入了。',
       emailVerified: 'Email 已驗證，可以登入了。',
       resetSent: '如果帳號存在，重設連結會寄到你的 Email。',
       passwordReset: '密碼已修改，請重新登入。',
@@ -105,6 +107,7 @@
       resetHint: 'Enter your registered email and a one-time reset link for this service will be sent.',
       resetTokenMissing: 'This reset link is missing a token. Request a new one.',
       codeSent: 'Verification code sent. Check your email.',
+      accountCreated: 'Account created. You can log in now.',
       emailVerified: 'Email verified. You can log in now.',
       resetSent: 'If the account exists, a reset link will be sent to your email.',
       passwordReset: 'Password updated. Please log in again.',
@@ -163,6 +166,7 @@
   let schedules: Schedule[] = []
   let runs: SyncRun[] = []
   let totalHours = 0
+  let publicConfig: PublicConfig = { emailVerificationRequired: true }
   let mode: AuthMode = 'login'
   let message = ''
   let loading = false
@@ -213,6 +217,10 @@
     return data
   }
 
+  async function loadPublicConfig() {
+    publicConfig = await api<PublicConfig>('/api/config')
+  }
+
   async function loadMe() {
     try {
       const data = await api<{ user: User }>('/api/me')
@@ -232,8 +240,13 @@
         return
       }
       await api('/api/auth/register', { method: 'POST', body: JSON.stringify({ email, password, confirmPassword, locale }) })
-      mode = 'verify'
-      message = tr('codeSent')
+      if (publicConfig.emailVerificationRequired) {
+        mode = 'verify'
+        message = tr('codeSent')
+      } else {
+        mode = 'login'
+        message = tr('accountCreated')
+      }
     } catch (err) {
       message = String((err as Error).message)
     } finally {
@@ -432,7 +445,14 @@
     return [time, hours].filter(Boolean).join(' · ')
   }
 
-  loadMe()
+  async function init() {
+    await loadPublicConfig().catch(() => {
+      publicConfig = { emailVerificationRequired: true }
+    })
+    await loadMe()
+  }
+
+  init()
 </script>
 
 {#if !user}
@@ -480,7 +500,9 @@
         <button class="link-button" on:click={() => (mode = 'forgot')}>{tr('forgot')}</button>
       {:else if mode === 'register'}
         <button class="primary" disabled={loading} on:click={register}>{tr('createAccount')}</button>
-        <button class="link-button" on:click={() => (mode = 'verify')}>{tr('alreadyHaveCode')}</button>
+        {#if publicConfig.emailVerificationRequired}
+          <button class="link-button" on:click={() => (mode = 'verify')}>{tr('alreadyHaveCode')}</button>
+        {/if}
       {:else if mode === 'verify'}
         <button class="primary" disabled={loading} on:click={verify}>{tr('verifyEmail')}</button>
         <button class="link-button" on:click={() => (mode = 'register')}>{tr('register')}</button>
