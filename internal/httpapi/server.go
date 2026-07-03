@@ -108,6 +108,7 @@ func (s *Server) routes() {
 	s.mux.Handle("PUT /api/gaia-credential", s.auth(http.HandlerFunc(s.handleSaveGaiaCredential)))
 	s.mux.Handle("GET /api/calendar-subscription", s.auth(http.HandlerFunc(s.handleGetCalendarSubscription)))
 	s.mux.Handle("POST /api/calendar-subscription/rotate", s.auth(http.HandlerFunc(s.handleRotateCalendarSubscription)))
+	s.mux.Handle("GET /api/calendar-request-logs", s.auth(http.HandlerFunc(s.handleGetCalendarRequestLogs)))
 	s.mux.Handle("POST /api/schedules/sync", s.auth(http.HandlerFunc(s.handleSyncSchedules)))
 	s.mux.Handle("GET /api/schedules", s.auth(http.HandlerFunc(s.handleSchedules)))
 	s.mux.Handle("GET /api/sync-runs", s.auth(http.HandlerFunc(s.handleSyncRuns)))

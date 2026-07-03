@@ -9,6 +9,9 @@ import (
 // AppSession is the predicate function for appsession builders.
 type AppSession func(*sql.Selector)
 
+// CalendarRequestLog is the predicate function for calendarrequestlog builders.
+type CalendarRequestLog func(*sql.Selector)
+
 // CalendarSubscription is the predicate function for calendarsubscription builders.
 type CalendarSubscription func(*sql.Selector)
 

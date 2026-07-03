@@ -12,6 +12,7 @@ import (
 	"gaia-calendar/ent/migrate"
 
 	"gaia-calendar/ent/appsession"
+	"gaia-calendar/ent/calendarrequestlog"
 	"gaia-calendar/ent/calendarsubscription"
 	"gaia-calendar/ent/emailverificationcode"
 	"gaia-calendar/ent/gaiacredential"
@@ -34,6 +35,8 @@ type Client struct {
 	Schema *migrate.Schema
 	// AppSession is the client for interacting with the AppSession builders.
 	AppSession *AppSessionClient
+	// CalendarRequestLog is the client for interacting with the CalendarRequestLog builders.
+	CalendarRequestLog *CalendarRequestLogClient
 	// CalendarSubscription is the client for interacting with the CalendarSubscription builders.
 	CalendarSubscription *CalendarSubscriptionClient
 	// EmailVerificationCode is the client for interacting with the EmailVerificationCode builders.
@@ -62,6 +65,7 @@ func NewClient(opts ...Option) *Client {
 func (c *Client) init() {
 	c.Schema = migrate.NewSchema(c.driver)
 	c.AppSession = NewAppSessionClient(c.config)
+	c.CalendarRequestLog = NewCalendarRequestLogClient(c.config)
 	c.CalendarSubscription = NewCalendarSubscriptionClient(c.config)
 	c.EmailVerificationCode = NewEmailVerificationCodeClient(c.config)
 	c.GaiaCredential = NewGaiaCredentialClient(c.config)
@@ -163,6 +167,7 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		ctx:                   ctx,
 		config:                cfg,
 		AppSession:            NewAppSessionClient(cfg),
+		CalendarRequestLog:    NewCalendarRequestLogClient(cfg),
 		CalendarSubscription:  NewCalendarSubscriptionClient(cfg),
 		EmailVerificationCode: NewEmailVerificationCodeClient(cfg),
 		GaiaCredential:        NewGaiaCredentialClient(cfg),
@@ -191,6 +196,7 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		ctx:                   ctx,
 		config:                cfg,
 		AppSession:            NewAppSessionClient(cfg),
+		CalendarRequestLog:    NewCalendarRequestLogClient(cfg),
 		CalendarSubscription:  NewCalendarSubscriptionClient(cfg),
 		EmailVerificationCode: NewEmailVerificationCodeClient(cfg),
 		GaiaCredential:        NewGaiaCredentialClient(cfg),
@@ -228,9 +234,9 @@ func (c *Client) Close() error {
 // In order to add hooks to a specific client, call: `client.Node.Use(...)`.
 func (c *Client) Use(hooks ...Hook) {
 	for _, n := range []interface{ Use(...Hook) }{
-		c.AppSession, c.CalendarSubscription, c.EmailVerificationCode, c.GaiaCredential,
-		c.GaiaSession, c.PasswordResetToken, c.ScheduleEntry, c.ScheduleSyncRun,
-		c.User,
+		c.AppSession, c.CalendarRequestLog, c.CalendarSubscription,
+		c.EmailVerificationCode, c.GaiaCredential, c.GaiaSession, c.PasswordResetToken,
+		c.ScheduleEntry, c.ScheduleSyncRun, c.User,
 	} {
 		n.Use(hooks...)
 	}
@@ -240,9 +246,9 @@ func (c *Client) Use(hooks ...Hook) {
 // In order to add interceptors to a specific client, call: `client.Node.Intercept(...)`.
 func (c *Client) Intercept(interceptors ...Interceptor) {
 	for _, n := range []interface{ Intercept(...Interceptor) }{
-		c.AppSession, c.CalendarSubscription, c.EmailVerificationCode, c.GaiaCredential,
-		c.GaiaSession, c.PasswordResetToken, c.ScheduleEntry, c.ScheduleSyncRun,
-		c.User,
+		c.AppSession, c.CalendarRequestLog, c.CalendarSubscription,
+		c.EmailVerificationCode, c.GaiaCredential, c.GaiaSession, c.PasswordResetToken,
+		c.ScheduleEntry, c.ScheduleSyncRun, c.User,
 	} {
 		n.Intercept(interceptors...)
 	}
@@ -253,6 +259,8 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 	switch m := m.(type) {
 	case *AppSessionMutation:
 		return c.AppSession.mutate(ctx, m)
+	case *CalendarRequestLogMutation:
+		return c.CalendarRequestLog.mutate(ctx, m)
 	case *CalendarSubscriptionMutation:
 		return c.CalendarSubscription.mutate(ctx, m)
 	case *EmailVerificationCodeMutation:
@@ -423,6 +431,155 @@ func (c *AppSessionClient) mutate(ctx context.Context, m *AppSessionMutation) (V
 	}
 }
 
+// CalendarRequestLogClient is a client for the CalendarRequestLog schema.
+type CalendarRequestLogClient struct {
+	config
+}
+
+// NewCalendarRequestLogClient returns a client for the CalendarRequestLog from the given config.
+func NewCalendarRequestLogClient(c config) *CalendarRequestLogClient {
+	return &CalendarRequestLogClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `calendarrequestlog.Hooks(f(g(h())))`.
+func (c *CalendarRequestLogClient) Use(hooks ...Hook) {
+	c.hooks.CalendarRequestLog = append(c.hooks.CalendarRequestLog, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `calendarrequestlog.Intercept(f(g(h())))`.
+func (c *CalendarRequestLogClient) Intercept(interceptors ...Interceptor) {
+	c.inters.CalendarRequestLog = append(c.inters.CalendarRequestLog, interceptors...)
+}
+
+// Create returns a builder for creating a CalendarRequestLog entity.
+func (c *CalendarRequestLogClient) Create() *CalendarRequestLogCreate {
+	mutation := newCalendarRequestLogMutation(c.config, OpCreate)
+	return &CalendarRequestLogCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of CalendarRequestLog entities.
+func (c *CalendarRequestLogClient) CreateBulk(builders ...*CalendarRequestLogCreate) *CalendarRequestLogCreateBulk {
+	return &CalendarRequestLogCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *CalendarRequestLogClient) MapCreateBulk(slice any, setFunc func(*CalendarRequestLogCreate, int)) *CalendarRequestLogCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &CalendarRequestLogCreateBulk{err: fmt.Errorf("calling to CalendarRequestLogClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*CalendarRequestLogCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &CalendarRequestLogCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for CalendarRequestLog.
+func (c *CalendarRequestLogClient) Update() *CalendarRequestLogUpdate {
+	mutation := newCalendarRequestLogMutation(c.config, OpUpdate)
+	return &CalendarRequestLogUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *CalendarRequestLogClient) UpdateOne(_m *CalendarRequestLog) *CalendarRequestLogUpdateOne {
+	mutation := newCalendarRequestLogMutation(c.config, OpUpdateOne, withCalendarRequestLog(_m))
+	return &CalendarRequestLogUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *CalendarRequestLogClient) UpdateOneID(id int) *CalendarRequestLogUpdateOne {
+	mutation := newCalendarRequestLogMutation(c.config, OpUpdateOne, withCalendarRequestLogID(id))
+	return &CalendarRequestLogUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for CalendarRequestLog.
+func (c *CalendarRequestLogClient) Delete() *CalendarRequestLogDelete {
+	mutation := newCalendarRequestLogMutation(c.config, OpDelete)
+	return &CalendarRequestLogDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *CalendarRequestLogClient) DeleteOne(_m *CalendarRequestLog) *CalendarRequestLogDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *CalendarRequestLogClient) DeleteOneID(id int) *CalendarRequestLogDeleteOne {
+	builder := c.Delete().Where(calendarrequestlog.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &CalendarRequestLogDeleteOne{builder}
+}
+
+// Query returns a query builder for CalendarRequestLog.
+func (c *CalendarRequestLogClient) Query() *CalendarRequestLogQuery {
+	return &CalendarRequestLogQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeCalendarRequestLog},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a CalendarRequestLog entity by its id.
+func (c *CalendarRequestLogClient) Get(ctx context.Context, id int) (*CalendarRequestLog, error) {
+	return c.Query().Where(calendarrequestlog.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *CalendarRequestLogClient) GetX(ctx context.Context, id int) *CalendarRequestLog {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// QuerySubscription queries the subscription edge of a CalendarRequestLog.
+func (c *CalendarRequestLogClient) QuerySubscription(_m *CalendarRequestLog) *CalendarSubscriptionQuery {
+	query := (&CalendarSubscriptionClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(calendarrequestlog.Table, calendarrequestlog.FieldID, id),
+			sqlgraph.To(calendarsubscription.Table, calendarsubscription.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, calendarrequestlog.SubscriptionTable, calendarrequestlog.SubscriptionColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// Hooks returns the client hooks.
+func (c *CalendarRequestLogClient) Hooks() []Hook {
+	return c.hooks.CalendarRequestLog
+}
+
+// Interceptors returns the client interceptors.
+func (c *CalendarRequestLogClient) Interceptors() []Interceptor {
+	return c.inters.CalendarRequestLog
+}
+
+func (c *CalendarRequestLogClient) mutate(ctx context.Context, m *CalendarRequestLogMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&CalendarRequestLogCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&CalendarRequestLogUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&CalendarRequestLogUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&CalendarRequestLogDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown CalendarRequestLog mutation op: %q", m.Op())
+	}
+}
+
 // CalendarSubscriptionClient is a client for the CalendarSubscription schema.
 type CalendarSubscriptionClient struct {
 	config
@@ -540,6 +697,22 @@ func (c *CalendarSubscriptionClient) QueryUser(_m *CalendarSubscription) *UserQu
 			sqlgraph.From(calendarsubscription.Table, calendarsubscription.FieldID, id),
 			sqlgraph.To(user.Table, user.FieldID),
 			sqlgraph.Edge(sqlgraph.M2O, true, calendarsubscription.UserTable, calendarsubscription.UserColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryRequestLogs queries the request_logs edge of a CalendarSubscription.
+func (c *CalendarSubscriptionClient) QueryRequestLogs(_m *CalendarSubscription) *CalendarRequestLogQuery {
+	query := (&CalendarRequestLogClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(calendarsubscription.Table, calendarsubscription.FieldID, id),
+			sqlgraph.To(calendarrequestlog.Table, calendarrequestlog.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, calendarsubscription.RequestLogsTable, calendarsubscription.RequestLogsColumn),
 		)
 		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
 		return fromV, nil
@@ -1730,13 +1903,13 @@ func (c *UserClient) mutate(ctx context.Context, m *UserMutation) (Value, error)
 // hooks and interceptors per client, for fast access.
 type (
 	hooks struct {
-		AppSession, CalendarSubscription, EmailVerificationCode, GaiaCredential,
-		GaiaSession, PasswordResetToken, ScheduleEntry, ScheduleSyncRun,
-		User []ent.Hook
+		AppSession, CalendarRequestLog, CalendarSubscription, EmailVerificationCode,
+		GaiaCredential, GaiaSession, PasswordResetToken, ScheduleEntry,
+		ScheduleSyncRun, User []ent.Hook
 	}
 	inters struct {
-		AppSession, CalendarSubscription, EmailVerificationCode, GaiaCredential,
-		GaiaSession, PasswordResetToken, ScheduleEntry, ScheduleSyncRun,
-		User []ent.Interceptor
+		AppSession, CalendarRequestLog, CalendarSubscription, EmailVerificationCode,
+		GaiaCredential, GaiaSession, PasswordResetToken, ScheduleEntry,
+		ScheduleSyncRun, User []ent.Interceptor
 	}
 )

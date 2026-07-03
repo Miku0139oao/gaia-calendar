@@ -31,6 +31,41 @@ var (
 			},
 		},
 	}
+	// CalendarRequestLogsColumns holds the columns for the "calendar_request_logs" table.
+	CalendarRequestLogsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "requested_at", Type: field.TypeTime},
+		{Name: "user_agent", Type: field.TypeString, Default: ""},
+		{Name: "remote_addr", Type: field.TypeString, Default: ""},
+		{Name: "path", Type: field.TypeString, Default: ""},
+		{Name: "calendar_subscription_request_logs", Type: field.TypeInt},
+	}
+	// CalendarRequestLogsTable holds the schema information for the "calendar_request_logs" table.
+	CalendarRequestLogsTable = &schema.Table{
+		Name:       "calendar_request_logs",
+		Columns:    CalendarRequestLogsColumns,
+		PrimaryKey: []*schema.Column{CalendarRequestLogsColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "calendar_request_logs_calendar_subscriptions_request_logs",
+				Columns:    []*schema.Column{CalendarRequestLogsColumns[5]},
+				RefColumns: []*schema.Column{CalendarSubscriptionsColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "calendarrequestlog_requested_at",
+				Unique:  false,
+				Columns: []*schema.Column{CalendarRequestLogsColumns[1]},
+			},
+			{
+				Name:    "calendarrequestlog_calendar_subscription_request_logs",
+				Unique:  false,
+				Columns: []*schema.Column{CalendarRequestLogsColumns[5]},
+			},
+		},
+	}
 	// CalendarSubscriptionsColumns holds the columns for the "calendar_subscriptions" table.
 	CalendarSubscriptionsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
@@ -252,6 +287,7 @@ var (
 	// Tables holds all the tables in the schema.
 	Tables = []*schema.Table{
 		AppSessionsTable,
+		CalendarRequestLogsTable,
 		CalendarSubscriptionsTable,
 		EmailVerificationCodesTable,
 		GaiaCredentialsTable,
@@ -265,6 +301,7 @@ var (
 
 func init() {
 	AppSessionsTable.ForeignKeys[0].RefTable = UsersTable
+	CalendarRequestLogsTable.ForeignKeys[0].RefTable = CalendarSubscriptionsTable
 	CalendarSubscriptionsTable.ForeignKeys[0].RefTable = UsersTable
 	EmailVerificationCodesTable.ForeignKeys[0].RefTable = UsersTable
 	GaiaCredentialsTable.ForeignKeys[0].RefTable = UsersTable

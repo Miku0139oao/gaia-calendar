@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"gaia-calendar/ent/calendarrequestlog"
 	"gaia-calendar/ent/calendarsubscription"
 	"gaia-calendar/ent/user"
 	"time"
@@ -84,6 +85,21 @@ func (_c *CalendarSubscriptionCreate) SetUserID(id int) *CalendarSubscriptionCre
 // SetUser sets the "user" edge to the User entity.
 func (_c *CalendarSubscriptionCreate) SetUser(v *User) *CalendarSubscriptionCreate {
 	return _c.SetUserID(v.ID)
+}
+
+// AddRequestLogIDs adds the "request_logs" edge to the CalendarRequestLog entity by IDs.
+func (_c *CalendarSubscriptionCreate) AddRequestLogIDs(ids ...int) *CalendarSubscriptionCreate {
+	_c.mutation.AddRequestLogIDs(ids...)
+	return _c
+}
+
+// AddRequestLogs adds the "request_logs" edges to the CalendarRequestLog entity.
+func (_c *CalendarSubscriptionCreate) AddRequestLogs(v ...*CalendarRequestLog) *CalendarSubscriptionCreate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _c.AddRequestLogIDs(ids...)
 }
 
 // Mutation returns the CalendarSubscriptionMutation object of the builder.
@@ -216,6 +232,22 @@ func (_c *CalendarSubscriptionCreate) createSpec() (*CalendarSubscription, *sqlg
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
 		_node.user_calendar_subscriptions = &nodes[0]
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := _c.mutation.RequestLogsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   calendarsubscription.RequestLogsTable,
+			Columns: []string{calendarsubscription.RequestLogsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(calendarrequestlog.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
 		_spec.Edges = append(_spec.Edges, edge)
 	}
 	return _node, _spec

@@ -7,6 +7,7 @@
   type Schedule = { id: number; shiftDate: string; shiftName?: string; startTime?: string; endTime?: string; hours?: number; classCode?: string; segments?: ScheduleSegment[] }
   type SyncRun = { id: number; startedAt: string; finishedAt?: string; status: string; errorMessage?: string; entryCount: number; marked?: boolean }
   type CalendarSubscription = { url: string; webcalUrl: string } | null
+  type CalendarRequestLog = { id: number; requestedAt: string; userAgent: string; remoteAddr: string; path: string }
   type Locale = 'zh-HK' | 'en'
   type Theme = 'light' | 'dark'
   type AuthMode = 'login' | 'register' | 'verify' | 'forgot' | 'reset'
@@ -61,6 +62,10 @@
       subscribeIphone: 'iPhone 訂閱',
       copyUrl: '複製 URL',
       rotateUrl: '重置 URL',
+      calendarRequestLogs: 'ICS 更新記錄',
+      lastCalendarRequest: '最後請求',
+      noCalendarRequests: '還沒有 Calendar app 請求記錄。',
+      unknownClient: '未知客戶端',
       copied: '已複製訂閱 URL。',
       rotated: '訂閱 URL 已重置，舊 URL 已失效。',
       refresh: '刷新',
@@ -130,6 +135,10 @@
       subscribeIphone: 'Subscribe on iPhone',
       copyUrl: 'Copy URL',
       rotateUrl: 'Reset URL',
+      calendarRequestLogs: 'ICS update log',
+      lastCalendarRequest: 'Last request',
+      noCalendarRequests: 'No Calendar app request logs yet.',
+      unknownClient: 'Unknown client',
       copied: 'Subscription URL copied.',
       rotated: 'Subscription URL reset. The old URL is invalid.',
       refresh: 'Refresh',
@@ -163,6 +172,7 @@
   let user: User | null = null
   let credential: Credential = null
   let calendarSubscription: CalendarSubscription = null
+  let calendarRequestLogs: CalendarRequestLog[] = []
   let schedules: Schedule[] = []
   let runs: SyncRun[] = []
   let totalHours = 0
@@ -225,7 +235,7 @@
     try {
       const data = await api<{ user: User }>('/api/me')
       user = data.user
-      await Promise.all([loadCredential(), loadCalendarSubscription(), loadSchedules(), loadRuns()])
+      await Promise.all([loadCredential(), loadCalendarSubscription(), loadCalendarRequestLogs(), loadSchedules(), loadRuns()])
     } catch {
       user = null
     }
@@ -306,7 +316,7 @@
     try {
       const data = await api<{ user: User }>('/api/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) })
       user = data.user
-      await Promise.all([loadCredential(), loadCalendarSubscription(), loadSchedules(), loadRuns()])
+      await Promise.all([loadCredential(), loadCalendarSubscription(), loadCalendarRequestLogs(), loadSchedules(), loadRuns()])
     } catch (err) {
       message = String((err as Error).message)
     } finally {
@@ -319,6 +329,7 @@
     user = null
     credential = null
     calendarSubscription = null
+    calendarRequestLogs = []
     schedules = []
     runs = []
     totalHours = 0
@@ -379,11 +390,17 @@
     calendarSubscription = data
   }
 
+  async function loadCalendarRequestLogs() {
+    const data = await api<{ logs: CalendarRequestLog[] }>('/api/calendar-request-logs')
+    calendarRequestLogs = data.logs
+  }
+
   async function rotateCalendarSubscription() {
     loading = true
     message = ''
     try {
       calendarSubscription = await api<CalendarSubscription>('/api/calendar-subscription/rotate', { method: 'POST' })
+      await loadCalendarRequestLogs()
       message = tr('rotated')
     } catch (err) {
       message = String((err as Error).message)
@@ -443,6 +460,10 @@
     const time = segment.startTime ? `${segment.startTime}${segment.endTime ? ` - ${segment.endTime}` : ''}` : ''
     const hours = fmtHours(segment.hours)
     return [time, hours].filter(Boolean).join(' · ')
+  }
+
+  function calendarClient(log: CalendarRequestLog) {
+    return log.userAgent || tr('unknownClient')
   }
 
   async function init() {
@@ -568,6 +589,27 @@
             <button class="ghost" disabled={!calendarSubscription} on:click={copyCalendarUrl}>{tr('copyUrl')}</button>
             <button class="ghost" disabled={loading} on:click={rotateCalendarSubscription}>{tr('rotateUrl')}</button>
           </div>
+          <div class="panel-title-row tight">
+            <h4>{tr('calendarRequestLogs')}</h4>
+            <button class="ghost small" on:click={loadCalendarRequestLogs}>{tr('refresh')}</button>
+          </div>
+          {#if calendarRequestLogs.length === 0}
+            <p class="muted">{tr('noCalendarRequests')}</p>
+          {:else}
+            <div class="request-log-list">
+              <div class="latest-request">
+                <span>{tr('lastCalendarRequest')}</span>
+                <strong>{new Date(calendarRequestLogs[0].requestedAt).toLocaleString(locale)}</strong>
+              </div>
+              {#each calendarRequestLogs.slice(0, 5) as log}
+                <article>
+                  <strong>{calendarClient(log)}</strong>
+                  <span>{new Date(log.requestedAt).toLocaleString(locale)}</span>
+                  {#if log.remoteAddr}<small>{log.remoteAddr}</small>{/if}
+                </article>
+              {/each}
+            </div>
+          {/if}
         </div>
 
         <div class="panel">

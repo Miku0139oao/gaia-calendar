@@ -323,6 +323,15 @@ header {
   margin-bottom: 0;
 }
 
+.panel-title-row.tight {
+  margin-top: 4px;
+}
+
+.panel-title-row h4 {
+  margin: 0;
+  font-size: 15px;
+}
+
 .hours-total {
   color: var(--accent);
   font-size: 14px;
@@ -356,12 +365,14 @@ header {
 }
 
 .run-list,
+.request-log-list,
 .schedule-list {
   display: grid;
   gap: 10px;
 }
 
 .run-list div,
+.request-log-list article,
 .schedule-list article {
   display: grid;
   gap: 3px;
@@ -373,9 +384,49 @@ header {
 
 .run-list span,
 .run-list small,
+.request-log-list span,
+.request-log-list small,
 .schedule-list span,
 .schedule-list small {
   color: var(--muted);
+}
+
+.request-log-list article {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+}
+
+.request-log-list article strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.request-log-list article small {
+  grid-column: 1 / -1;
+}
+
+.latest-request {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  align-items: baseline;
+  padding: 10px 12px;
+  border: 1px solid color-mix(in srgb, var(--accent), var(--border) 45%);
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--accent), transparent 90%);
+}
+
+.latest-request span {
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.latest-request strong {
+  color: var(--accent);
+  font-size: 14px;
+  text-align: right;
 }
 
 .run-list .marked {

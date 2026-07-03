@@ -26,6 +26,7 @@ func (CalendarSubscription) Fields() []ent.Field {
 func (CalendarSubscription) Edges() []ent.Edge {
 	return []ent.Edge{
 		edge.From("user", User.Type).Ref("calendar_subscriptions").Unique().Required(),
+		edge.To("request_logs", CalendarRequestLog.Type),
 	}
 }
 

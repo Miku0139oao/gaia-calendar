@@ -1,12 +1,17 @@
 package httpapi
 
 import (
+	"net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
 	"time"
 
 	"gaia-calendar/ent"
+	"gaia-calendar/ent/calendarrequestlog"
+	"gaia-calendar/internal/config"
 	"gaia-calendar/internal/gaia"
+	"gaia-calendar/internal/security"
 )
 
 func TestBuildICSIncludesMonthlyTotalEvent(t *testing.T) {
@@ -71,5 +76,107 @@ func TestBuildICSIncludesMonthlyTotalEvent(t *testing.T) {
 	}
 	if strings.Contains(ics, "SUMMARY:B 13:30-23:00") {
 		t.Fatalf("shift event summaries should not repeat visible time ranges:\n%s", ics)
+	}
+}
+
+func TestCalendarFeedRecordsRequestLog(t *testing.T) {
+	db := openHTTPAPITestDB(t, "calendar-request-log.db")
+	defer db.Close()
+	u := db.User.Create().
+		SetEmail("calendar-log@example.com").
+		SetPasswordHash("hash").
+		SetEmailVerified(true).
+		SaveX(t.Context())
+	token := "calendar-feed-token"
+	sub := db.CalendarSubscription.Create().
+		SetUser(u).
+		SetTokenHash(security.HashToken(token)).
+		SetEncryptedToken("encrypted").
+		SetEnabled(true).
+		SaveX(t.Context())
+	server := New(config.Config{
+		BaseURL:                   "http://localhost:8080",
+		SessionSecret:             "dev-session-secret-change-me",
+		CredentialEncryptionKey:   "dev-encryption-secret-change-me",
+		EmailVerificationRequired: false,
+	}, db)
+
+	req := httptest.NewRequest(http.MethodGet, "/calendar/"+token+".ics", nil)
+	req.Header.Set("User-Agent", "iPhone Calendar/1.0")
+	req.Header.Set("X-Forwarded-For", "203.0.113.10, 10.0.0.1")
+	res := httptest.NewRecorder()
+	server.Handler().ServeHTTP(res, req)
+
+	if res.Code != http.StatusOK {
+		t.Fatalf("calendar status = %d, body = %s", res.Code, res.Body.String())
+	}
+	logEntry := db.CalendarRequestLog.Query().
+		Where(calendarrequestlog.HasSubscriptionWith()).
+		WithSubscription().
+		OnlyX(t.Context())
+	if logEntry.Edges.Subscription == nil || logEntry.Edges.Subscription.ID != sub.ID {
+		t.Fatal("request log should be linked to the calendar subscription")
+	}
+	if logEntry.UserAgent != "iPhone Calendar/1.0" {
+		t.Fatalf("user agent = %q", logEntry.UserAgent)
+	}
+	if logEntry.RemoteAddr != "203.0.113.10" {
+		t.Fatalf("remote addr = %q", logEntry.RemoteAddr)
+	}
+	if logEntry.RequestedAt.IsZero() {
+		t.Fatal("requested_at should be set")
+	}
+}
+
+func TestGetCalendarRequestLogsReturnsCurrentUserLogs(t *testing.T) {
+	db := openHTTPAPITestDB(t, "calendar-request-log-api.db")
+	defer db.Close()
+	u := db.User.Create().
+		SetEmail("calendar-api@example.com").
+		SetPasswordHash("hash").
+		SetEmailVerified(true).
+		SaveX(t.Context())
+	sub := db.CalendarSubscription.Create().
+		SetUser(u).
+		SetTokenHash(security.HashToken("calendar-feed-token")).
+		SetEncryptedToken("encrypted").
+		SetEnabled(true).
+		SaveX(t.Context())
+	db.CalendarRequestLog.Create().
+		SetSubscription(sub).
+		SetRequestedAt(time.Date(2026, 7, 4, 10, 30, 0, 0, time.UTC)).
+		SetUserAgent("iPhone Calendar/1.0").
+		SetRemoteAddr("203.0.113.10").
+		SaveX(t.Context())
+	sessionToken := "app-session-token"
+	db.AppSession.Create().
+		SetUser(u).
+		SetTokenHash(security.HashToken(sessionToken)).
+		SetExpiresAt(time.Now().Add(time.Hour)).
+		SaveX(t.Context())
+	server := New(config.Config{
+		BaseURL:                   "http://localhost:8080",
+		SessionSecret:             "dev-session-secret-change-me",
+		CredentialEncryptionKey:   "dev-encryption-secret-change-me",
+		EmailVerificationRequired: false,
+	}, db)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/calendar-request-logs", nil)
+	req.AddCookie(&http.Cookie{Name: "gaia_calendar_session", Value: sessionToken})
+	res := httptest.NewRecorder()
+	server.Handler().ServeHTTP(res, req)
+
+	if res.Code != http.StatusOK {
+		t.Fatalf("request logs status = %d, body = %s", res.Code, res.Body.String())
+	}
+	body := res.Body.String()
+	for _, want := range []string{
+		`"requestedAt":"2026-07-04T10:30:00Z"`,
+		`"userAgent":"iPhone Calendar/1.0"`,
+		`"remoteAddr":"203.0.113.10"`,
+	} {
+		if !strings.Contains(body, want) {
+			t.Fatalf("request logs response missing %q: %s", want, body)
+		}
 	}
 }

@@ -14,6 +14,8 @@ type Tx struct {
 	config
 	// AppSession is the client for interacting with the AppSession builders.
 	AppSession *AppSessionClient
+	// CalendarRequestLog is the client for interacting with the CalendarRequestLog builders.
+	CalendarRequestLog *CalendarRequestLogClient
 	// CalendarSubscription is the client for interacting with the CalendarSubscription builders.
 	CalendarSubscription *CalendarSubscriptionClient
 	// EmailVerificationCode is the client for interacting with the EmailVerificationCode builders.
@@ -162,6 +164,7 @@ func (tx *Tx) Client() *Client {
 
 func (tx *Tx) init() {
 	tx.AppSession = NewAppSessionClient(tx.config)
+	tx.CalendarRequestLog = NewCalendarRequestLogClient(tx.config)
 	tx.CalendarSubscription = NewCalendarSubscriptionClient(tx.config)
 	tx.EmailVerificationCode = NewEmailVerificationCodeClient(tx.config)
 	tx.GaiaCredential = NewGaiaCredentialClient(tx.config)

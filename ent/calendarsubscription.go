@@ -39,9 +39,11 @@ type CalendarSubscription struct {
 type CalendarSubscriptionEdges struct {
 	// User holds the value of the user edge.
 	User *User `json:"user,omitempty"`
+	// RequestLogs holds the value of the request_logs edge.
+	RequestLogs []*CalendarRequestLog `json:"request_logs,omitempty"`
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
-	loadedTypes [1]bool
+	loadedTypes [2]bool
 }
 
 // UserOrErr returns the User value or an error if the edge
@@ -53,6 +55,15 @@ func (e CalendarSubscriptionEdges) UserOrErr() (*User, error) {
 		return nil, &NotFoundError{label: user.Label}
 	}
 	return nil, &NotLoadedError{edge: "user"}
+}
+
+// RequestLogsOrErr returns the RequestLogs value or an error if the edge
+// was not loaded in eager-loading.
+func (e CalendarSubscriptionEdges) RequestLogsOrErr() ([]*CalendarRequestLog, error) {
+	if e.loadedTypes[1] {
+		return e.RequestLogs, nil
+	}
+	return nil, &NotLoadedError{edge: "request_logs"}
 }
 
 // scanValues returns the types for scanning values from sql.Rows.
@@ -144,6 +155,11 @@ func (_m *CalendarSubscription) Value(name string) (ent.Value, error) {
 // QueryUser queries the "user" edge of the CalendarSubscription entity.
 func (_m *CalendarSubscription) QueryUser() *UserQuery {
 	return NewCalendarSubscriptionClient(_m.config).QueryUser(_m)
+}
+
+// QueryRequestLogs queries the "request_logs" edge of the CalendarSubscription entity.
+func (_m *CalendarSubscription) QueryRequestLogs() *CalendarRequestLogQuery {
+	return NewCalendarSubscriptionClient(_m.config).QueryRequestLogs(_m)
 }
 
 // Update returns a builder for updating this CalendarSubscription.

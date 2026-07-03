@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"gaia-calendar/ent/calendarrequestlog"
 	"gaia-calendar/ent/calendarsubscription"
 	"gaia-calendar/ent/predicate"
 	"gaia-calendar/ent/user"
@@ -102,6 +103,21 @@ func (_u *CalendarSubscriptionUpdate) SetUser(v *User) *CalendarSubscriptionUpda
 	return _u.SetUserID(v.ID)
 }
 
+// AddRequestLogIDs adds the "request_logs" edge to the CalendarRequestLog entity by IDs.
+func (_u *CalendarSubscriptionUpdate) AddRequestLogIDs(ids ...int) *CalendarSubscriptionUpdate {
+	_u.mutation.AddRequestLogIDs(ids...)
+	return _u
+}
+
+// AddRequestLogs adds the "request_logs" edges to the CalendarRequestLog entity.
+func (_u *CalendarSubscriptionUpdate) AddRequestLogs(v ...*CalendarRequestLog) *CalendarSubscriptionUpdate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddRequestLogIDs(ids...)
+}
+
 // Mutation returns the CalendarSubscriptionMutation object of the builder.
 func (_u *CalendarSubscriptionUpdate) Mutation() *CalendarSubscriptionMutation {
 	return _u.mutation
@@ -111,6 +127,27 @@ func (_u *CalendarSubscriptionUpdate) Mutation() *CalendarSubscriptionMutation {
 func (_u *CalendarSubscriptionUpdate) ClearUser() *CalendarSubscriptionUpdate {
 	_u.mutation.ClearUser()
 	return _u
+}
+
+// ClearRequestLogs clears all "request_logs" edges to the CalendarRequestLog entity.
+func (_u *CalendarSubscriptionUpdate) ClearRequestLogs() *CalendarSubscriptionUpdate {
+	_u.mutation.ClearRequestLogs()
+	return _u
+}
+
+// RemoveRequestLogIDs removes the "request_logs" edge to CalendarRequestLog entities by IDs.
+func (_u *CalendarSubscriptionUpdate) RemoveRequestLogIDs(ids ...int) *CalendarSubscriptionUpdate {
+	_u.mutation.RemoveRequestLogIDs(ids...)
+	return _u
+}
+
+// RemoveRequestLogs removes "request_logs" edges to CalendarRequestLog entities.
+func (_u *CalendarSubscriptionUpdate) RemoveRequestLogs(v ...*CalendarRequestLog) *CalendarSubscriptionUpdate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveRequestLogIDs(ids...)
 }
 
 // Save executes the query and returns the number of nodes affected by the update operation.
@@ -213,6 +250,51 @@ func (_u *CalendarSubscriptionUpdate) sqlSave(ctx context.Context) (_node int, e
 		}
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
+	if _u.mutation.RequestLogsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   calendarsubscription.RequestLogsTable,
+			Columns: []string{calendarsubscription.RequestLogsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(calendarrequestlog.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedRequestLogsIDs(); len(nodes) > 0 && !_u.mutation.RequestLogsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   calendarsubscription.RequestLogsTable,
+			Columns: []string{calendarsubscription.RequestLogsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(calendarrequestlog.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RequestLogsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   calendarsubscription.RequestLogsTable,
+			Columns: []string{calendarsubscription.RequestLogsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(calendarrequestlog.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
 	if _node, err = sqlgraph.UpdateNodes(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
 			err = &NotFoundError{calendarsubscription.Label}
@@ -306,6 +388,21 @@ func (_u *CalendarSubscriptionUpdateOne) SetUser(v *User) *CalendarSubscriptionU
 	return _u.SetUserID(v.ID)
 }
 
+// AddRequestLogIDs adds the "request_logs" edge to the CalendarRequestLog entity by IDs.
+func (_u *CalendarSubscriptionUpdateOne) AddRequestLogIDs(ids ...int) *CalendarSubscriptionUpdateOne {
+	_u.mutation.AddRequestLogIDs(ids...)
+	return _u
+}
+
+// AddRequestLogs adds the "request_logs" edges to the CalendarRequestLog entity.
+func (_u *CalendarSubscriptionUpdateOne) AddRequestLogs(v ...*CalendarRequestLog) *CalendarSubscriptionUpdateOne {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddRequestLogIDs(ids...)
+}
+
 // Mutation returns the CalendarSubscriptionMutation object of the builder.
 func (_u *CalendarSubscriptionUpdateOne) Mutation() *CalendarSubscriptionMutation {
 	return _u.mutation
@@ -315,6 +412,27 @@ func (_u *CalendarSubscriptionUpdateOne) Mutation() *CalendarSubscriptionMutatio
 func (_u *CalendarSubscriptionUpdateOne) ClearUser() *CalendarSubscriptionUpdateOne {
 	_u.mutation.ClearUser()
 	return _u
+}
+
+// ClearRequestLogs clears all "request_logs" edges to the CalendarRequestLog entity.
+func (_u *CalendarSubscriptionUpdateOne) ClearRequestLogs() *CalendarSubscriptionUpdateOne {
+	_u.mutation.ClearRequestLogs()
+	return _u
+}
+
+// RemoveRequestLogIDs removes the "request_logs" edge to CalendarRequestLog entities by IDs.
+func (_u *CalendarSubscriptionUpdateOne) RemoveRequestLogIDs(ids ...int) *CalendarSubscriptionUpdateOne {
+	_u.mutation.RemoveRequestLogIDs(ids...)
+	return _u
+}
+
+// RemoveRequestLogs removes "request_logs" edges to CalendarRequestLog entities.
+func (_u *CalendarSubscriptionUpdateOne) RemoveRequestLogs(v ...*CalendarRequestLog) *CalendarSubscriptionUpdateOne {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveRequestLogIDs(ids...)
 }
 
 // Where appends a list predicates to the CalendarSubscriptionUpdate builder.
@@ -440,6 +558,51 @@ func (_u *CalendarSubscriptionUpdateOne) sqlSave(ctx context.Context) (_node *Ca
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(user.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.RequestLogsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   calendarsubscription.RequestLogsTable,
+			Columns: []string{calendarsubscription.RequestLogsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(calendarrequestlog.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedRequestLogsIDs(); len(nodes) > 0 && !_u.mutation.RequestLogsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   calendarsubscription.RequestLogsTable,
+			Columns: []string{calendarsubscription.RequestLogsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(calendarrequestlog.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RequestLogsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   calendarsubscription.RequestLogsTable,
+			Columns: []string{calendarsubscription.RequestLogsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(calendarrequestlog.FieldID, field.TypeInt),
 			},
 		}
 		for _, k := range nodes {

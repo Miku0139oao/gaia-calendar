@@ -4,6 +4,7 @@ package ent
 
 import (
 	"gaia-calendar/ent/appsession"
+	"gaia-calendar/ent/calendarrequestlog"
 	"gaia-calendar/ent/calendarsubscription"
 	"gaia-calendar/ent/emailverificationcode"
 	"gaia-calendar/ent/gaiacredential"
@@ -26,6 +27,24 @@ func init() {
 	appsessionDescCreatedAt := appsessionFields[2].Descriptor()
 	// appsession.DefaultCreatedAt holds the default value on creation for the created_at field.
 	appsession.DefaultCreatedAt = appsessionDescCreatedAt.Default.(func() time.Time)
+	calendarrequestlogFields := schema.CalendarRequestLog{}.Fields()
+	_ = calendarrequestlogFields
+	// calendarrequestlogDescRequestedAt is the schema descriptor for requested_at field.
+	calendarrequestlogDescRequestedAt := calendarrequestlogFields[0].Descriptor()
+	// calendarrequestlog.DefaultRequestedAt holds the default value on creation for the requested_at field.
+	calendarrequestlog.DefaultRequestedAt = calendarrequestlogDescRequestedAt.Default.(func() time.Time)
+	// calendarrequestlogDescUserAgent is the schema descriptor for user_agent field.
+	calendarrequestlogDescUserAgent := calendarrequestlogFields[1].Descriptor()
+	// calendarrequestlog.DefaultUserAgent holds the default value on creation for the user_agent field.
+	calendarrequestlog.DefaultUserAgent = calendarrequestlogDescUserAgent.Default.(string)
+	// calendarrequestlogDescRemoteAddr is the schema descriptor for remote_addr field.
+	calendarrequestlogDescRemoteAddr := calendarrequestlogFields[2].Descriptor()
+	// calendarrequestlog.DefaultRemoteAddr holds the default value on creation for the remote_addr field.
+	calendarrequestlog.DefaultRemoteAddr = calendarrequestlogDescRemoteAddr.Default.(string)
+	// calendarrequestlogDescPath is the schema descriptor for path field.
+	calendarrequestlogDescPath := calendarrequestlogFields[3].Descriptor()
+	// calendarrequestlog.DefaultPath holds the default value on creation for the path field.
+	calendarrequestlog.DefaultPath = calendarrequestlogDescPath.Default.(string)
 	calendarsubscriptionFields := schema.CalendarSubscription{}.Fields()
 	_ = calendarsubscriptionFields
 	// calendarsubscriptionDescEnabled is the schema descriptor for enabled field.

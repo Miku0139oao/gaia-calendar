@@ -26,6 +26,8 @@ const (
 	FieldUpdatedAt = "updated_at"
 	// EdgeUser holds the string denoting the user edge name in mutations.
 	EdgeUser = "user"
+	// EdgeRequestLogs holds the string denoting the request_logs edge name in mutations.
+	EdgeRequestLogs = "request_logs"
 	// Table holds the table name of the calendarsubscription in the database.
 	Table = "calendar_subscriptions"
 	// UserTable is the table that holds the user relation/edge.
@@ -35,6 +37,13 @@ const (
 	UserInverseTable = "users"
 	// UserColumn is the table column denoting the user relation/edge.
 	UserColumn = "user_calendar_subscriptions"
+	// RequestLogsTable is the table that holds the request_logs relation/edge.
+	RequestLogsTable = "calendar_request_logs"
+	// RequestLogsInverseTable is the table name for the CalendarRequestLog entity.
+	// It exists in this package in order to avoid circular dependency with the "calendarrequestlog" package.
+	RequestLogsInverseTable = "calendar_request_logs"
+	// RequestLogsColumn is the table column denoting the request_logs relation/edge.
+	RequestLogsColumn = "calendar_subscription_request_logs"
 )
 
 // Columns holds all SQL columns for calendarsubscription fields.
@@ -118,10 +127,31 @@ func ByUserField(field string, opts ...sql.OrderTermOption) OrderOption {
 		sqlgraph.OrderByNeighborTerms(s, newUserStep(), sql.OrderByField(field, opts...))
 	}
 }
+
+// ByRequestLogsCount orders the results by request_logs count.
+func ByRequestLogsCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newRequestLogsStep(), opts...)
+	}
+}
+
+// ByRequestLogs orders the results by request_logs terms.
+func ByRequestLogs(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newRequestLogsStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
 func newUserStep() *sqlgraph.Step {
 	return sqlgraph.NewStep(
 		sqlgraph.From(Table, FieldID),
 		sqlgraph.To(UserInverseTable, FieldID),
 		sqlgraph.Edge(sqlgraph.M2O, true, UserTable, UserColumn),
+	)
+}
+func newRequestLogsStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(RequestLogsInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, RequestLogsTable, RequestLogsColumn),
 	)
 }

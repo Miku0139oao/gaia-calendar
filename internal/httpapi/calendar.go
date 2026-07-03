@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"gaia-calendar/ent"
+	"gaia-calendar/ent/calendarrequestlog"
 	"gaia-calendar/ent/calendarsubscription"
 	"gaia-calendar/ent/gaiacredential"
 	"gaia-calendar/ent/scheduleentry"
@@ -137,6 +138,7 @@ func (s *Server) handleCalendarFeed(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusNotFound, "calendar not found")
 		return
 	}
+	s.recordCalendarRequest(r, sub)
 	entries, err := s.db.ScheduleEntry.Query().
 		Where(scheduleentry.HasUserWith(user.ID(sub.Edges.User.ID))).
 		Order(ent.Asc(scheduleentry.FieldShiftDate)).
@@ -158,6 +160,54 @@ func (s *Server) handleCalendarFeed(w http.ResponseWriter, r *http.Request) {
 		EmployeeName:    payload.EmployeeName,
 		LeaveBalances:   payload.LeaveBalances,
 	}, entries)))
+}
+
+func (s *Server) recordCalendarRequest(r *http.Request, sub *ent.CalendarSubscription) {
+	_, _ = s.db.CalendarRequestLog.Create().
+		SetSubscription(sub).
+		SetUserAgent(strings.TrimSpace(r.UserAgent())).
+		SetRemoteAddr(clientIP(r)).
+		SetPath(r.URL.Path).
+		Save(r.Context())
+}
+
+func (s *Server) handleGetCalendarRequestLogs(w http.ResponseWriter, r *http.Request) {
+	u := currentUser(r)
+	logs, err := s.db.CalendarRequestLog.Query().
+		Where(calendarrequestlog.HasSubscriptionWith(calendarsubscription.HasUserWith(user.ID(u.ID)))).
+		Order(ent.Desc(calendarrequestlog.FieldRequestedAt)).
+		Limit(20).
+		All(r.Context())
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to load calendar request logs")
+		return
+	}
+	out := make([]calendarRequestLogResponse, 0, len(logs))
+	for _, log := range logs {
+		out = append(out, calendarRequestLogResponse{
+			ID:          log.ID,
+			RequestedAt: log.RequestedAt,
+			UserAgent:   log.UserAgent,
+			RemoteAddr:  log.RemoteAddr,
+			Path:        log.Path,
+		})
+	}
+	writeJSON(w, http.StatusOK, calendarRequestLogsResponse{Logs: out})
+}
+
+func clientIP(r *http.Request) string {
+	if forwarded := strings.TrimSpace(r.Header.Get("X-Forwarded-For")); forwarded != "" {
+		first, _, _ := strings.Cut(forwarded, ",")
+		return strings.TrimSpace(first)
+	}
+	if realIP := strings.TrimSpace(r.Header.Get("X-Real-IP")); realIP != "" {
+		return realIP
+	}
+	host, _, err := strings.Cut(r.RemoteAddr, ":")
+	if err {
+		return strings.TrimSpace(host)
+	}
+	return strings.TrimSpace(r.RemoteAddr)
 }
 
 type calendarMetadata struct {

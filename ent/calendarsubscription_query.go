@@ -4,7 +4,9 @@ package ent
 
 import (
 	"context"
+	"database/sql/driver"
 	"fmt"
+	"gaia-calendar/ent/calendarrequestlog"
 	"gaia-calendar/ent/calendarsubscription"
 	"gaia-calendar/ent/predicate"
 	"gaia-calendar/ent/user"
@@ -19,12 +21,13 @@ import (
 // CalendarSubscriptionQuery is the builder for querying CalendarSubscription entities.
 type CalendarSubscriptionQuery struct {
 	config
-	ctx        *QueryContext
-	order      []calendarsubscription.OrderOption
-	inters     []Interceptor
-	predicates []predicate.CalendarSubscription
-	withUser   *UserQuery
-	withFKs    bool
+	ctx             *QueryContext
+	order           []calendarsubscription.OrderOption
+	inters          []Interceptor
+	predicates      []predicate.CalendarSubscription
+	withUser        *UserQuery
+	withRequestLogs *CalendarRequestLogQuery
+	withFKs         bool
 	// intermediate query (i.e. traversal path).
 	sql  *sql.Selector
 	path func(context.Context) (*sql.Selector, error)
@@ -76,6 +79,28 @@ func (_q *CalendarSubscriptionQuery) QueryUser() *UserQuery {
 			sqlgraph.From(calendarsubscription.Table, calendarsubscription.FieldID, selector),
 			sqlgraph.To(user.Table, user.FieldID),
 			sqlgraph.Edge(sqlgraph.M2O, true, calendarsubscription.UserTable, calendarsubscription.UserColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
+// QueryRequestLogs chains the current query on the "request_logs" edge.
+func (_q *CalendarSubscriptionQuery) QueryRequestLogs() *CalendarRequestLogQuery {
+	query := (&CalendarRequestLogClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(calendarsubscription.Table, calendarsubscription.FieldID, selector),
+			sqlgraph.To(calendarrequestlog.Table, calendarrequestlog.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, calendarsubscription.RequestLogsTable, calendarsubscription.RequestLogsColumn),
 		)
 		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
 		return fromU, nil
@@ -270,12 +295,13 @@ func (_q *CalendarSubscriptionQuery) Clone() *CalendarSubscriptionQuery {
 		return nil
 	}
 	return &CalendarSubscriptionQuery{
-		config:     _q.config,
-		ctx:        _q.ctx.Clone(),
-		order:      append([]calendarsubscription.OrderOption{}, _q.order...),
-		inters:     append([]Interceptor{}, _q.inters...),
-		predicates: append([]predicate.CalendarSubscription{}, _q.predicates...),
-		withUser:   _q.withUser.Clone(),
+		config:          _q.config,
+		ctx:             _q.ctx.Clone(),
+		order:           append([]calendarsubscription.OrderOption{}, _q.order...),
+		inters:          append([]Interceptor{}, _q.inters...),
+		predicates:      append([]predicate.CalendarSubscription{}, _q.predicates...),
+		withUser:        _q.withUser.Clone(),
+		withRequestLogs: _q.withRequestLogs.Clone(),
 		// clone intermediate query.
 		sql:  _q.sql.Clone(),
 		path: _q.path,
@@ -290,6 +316,17 @@ func (_q *CalendarSubscriptionQuery) WithUser(opts ...func(*UserQuery)) *Calenda
 		opt(query)
 	}
 	_q.withUser = query
+	return _q
+}
+
+// WithRequestLogs tells the query-builder to eager-load the nodes that are connected to
+// the "request_logs" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *CalendarSubscriptionQuery) WithRequestLogs(opts ...func(*CalendarRequestLogQuery)) *CalendarSubscriptionQuery {
+	query := (&CalendarRequestLogClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withRequestLogs = query
 	return _q
 }
 
@@ -372,8 +409,9 @@ func (_q *CalendarSubscriptionQuery) sqlAll(ctx context.Context, hooks ...queryH
 		nodes       = []*CalendarSubscription{}
 		withFKs     = _q.withFKs
 		_spec       = _q.querySpec()
-		loadedTypes = [1]bool{
+		loadedTypes = [2]bool{
 			_q.withUser != nil,
+			_q.withRequestLogs != nil,
 		}
 	)
 	if _q.withUser != nil {
@@ -403,6 +441,15 @@ func (_q *CalendarSubscriptionQuery) sqlAll(ctx context.Context, hooks ...queryH
 	if query := _q.withUser; query != nil {
 		if err := _q.loadUser(ctx, query, nodes, nil,
 			func(n *CalendarSubscription, e *User) { n.Edges.User = e }); err != nil {
+			return nil, err
+		}
+	}
+	if query := _q.withRequestLogs; query != nil {
+		if err := _q.loadRequestLogs(ctx, query, nodes,
+			func(n *CalendarSubscription) { n.Edges.RequestLogs = []*CalendarRequestLog{} },
+			func(n *CalendarSubscription, e *CalendarRequestLog) {
+				n.Edges.RequestLogs = append(n.Edges.RequestLogs, e)
+			}); err != nil {
 			return nil, err
 		}
 	}
@@ -438,6 +485,37 @@ func (_q *CalendarSubscriptionQuery) loadUser(ctx context.Context, query *UserQu
 		for i := range nodes {
 			assign(nodes[i], n)
 		}
+	}
+	return nil
+}
+func (_q *CalendarSubscriptionQuery) loadRequestLogs(ctx context.Context, query *CalendarRequestLogQuery, nodes []*CalendarSubscription, init func(*CalendarSubscription), assign func(*CalendarSubscription, *CalendarRequestLog)) error {
+	fks := make([]driver.Value, 0, len(nodes))
+	nodeids := make(map[int]*CalendarSubscription)
+	for i := range nodes {
+		fks = append(fks, nodes[i].ID)
+		nodeids[nodes[i].ID] = nodes[i]
+		if init != nil {
+			init(nodes[i])
+		}
+	}
+	query.withFKs = true
+	query.Where(predicate.CalendarRequestLog(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(calendarsubscription.RequestLogsColumn), fks...))
+	}))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		fk := n.calendar_subscription_request_logs
+		if fk == nil {
+			return fmt.Errorf(`foreign-key "calendar_subscription_request_logs" is nil for node %v`, n.ID)
+		}
+		node, ok := nodeids[*fk]
+		if !ok {
+			return fmt.Errorf(`unexpected referenced foreign-key "calendar_subscription_request_logs" returned %v for node %v`, *fk, n.ID)
+		}
+		assign(node, n)
 	}
 	return nil
 }

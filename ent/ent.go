@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"gaia-calendar/ent/appsession"
+	"gaia-calendar/ent/calendarrequestlog"
 	"gaia-calendar/ent/calendarsubscription"
 	"gaia-calendar/ent/emailverificationcode"
 	"gaia-calendar/ent/gaiacredential"
@@ -82,6 +83,7 @@ func checkColumn(t, c string) error {
 	initCheck.Do(func() {
 		columnCheck = sql.NewColumnCheck(map[string]func(string) bool{
 			appsession.Table:            appsession.ValidColumn,
+			calendarrequestlog.Table:    calendarrequestlog.ValidColumn,
 			calendarsubscription.Table:  calendarsubscription.ValidColumn,
 			emailverificationcode.Table: emailverificationcode.ValidColumn,
 			gaiacredential.Table:        gaiacredential.ValidColumn,

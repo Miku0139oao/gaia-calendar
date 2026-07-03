@@ -50,6 +50,18 @@ type publicConfigResponse struct {
 	EmailVerificationRequired bool `json:"emailVerificationRequired"`
 }
 
+type calendarRequestLogResponse struct {
+	ID          int       `json:"id"`
+	RequestedAt time.Time `json:"requestedAt"`
+	UserAgent   string    `json:"userAgent"`
+	RemoteAddr  string    `json:"remoteAddr"`
+	Path        string    `json:"path"`
+}
+
+type calendarRequestLogsResponse struct {
+	Logs []calendarRequestLogResponse `json:"logs"`
+}
+
 type scheduleResponse struct {
 	ID        int                       `json:"id"`
 	ShiftDate string                    `json:"shiftDate"`
