@@ -3,3 +3,5 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.runtime
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
