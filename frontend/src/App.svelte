@@ -1,13 +1,14 @@
 <script lang="ts">
   import './app.css'
 
-  type User = { id: number; email: string; emailVerified: boolean; role: string }
+  type User = { id: number; email: string; nickname?: string; emailVerified: boolean; role: string }
   type Credential = { companyCode: string; employeeAccount: string; status: string; lastLoginAt?: string } | null
   type ScheduleSegment = { name?: string; startTime?: string; endTime?: string; hours?: number; classCode?: string }
   type Schedule = { id: number; shiftDate: string; shiftName?: string; startTime?: string; endTime?: string; hours?: number; classCode?: string; segments?: ScheduleSegment[] }
   type SyncRun = { id: number; startedAt: string; finishedAt?: string; status: string; errorMessage?: string; entryCount: number; marked?: boolean }
   type CalendarSubscription = { url: string; webcalUrl: string } | null
   type CalendarRequestLog = { id: number; requestedAt: string; userAgent: string; remoteAddr: string; path: string }
+  type AdminUser = { id: number; email: string; nickname?: string; emailVerified: boolean; role: string; createdAt: string; lastLoginAt?: string }
   type Locale = 'zh-HK' | 'en'
   type Theme = 'light' | 'dark'
   type AuthMode = 'login' | 'register' | 'verify' | 'forgot' | 'reset'
@@ -24,6 +25,8 @@
       forgot: '忘記密碼',
       resetPassword: '重設密碼',
       email: 'Email',
+      loginIdentifier: 'Email / Nickname',
+      nickname: 'Nickname',
       password: '密碼',
       confirmPassword: '確認密碼',
       newPassword: '新密碼',
@@ -66,6 +69,16 @@
       lastCalendarRequest: '最後請求',
       noCalendarRequests: '還沒有 Calendar app 請求記錄。',
       unknownClient: '未知客戶端',
+      adminPanel: '使用者管理',
+      totalUsers: '使用者總數',
+      role: '權限',
+      emailStatus: 'Email 狀態',
+      verifiedEmail: '已驗證',
+      unverifiedEmail: '未驗證',
+      lastLogin: '最後登入',
+      createdAt: '建立時間',
+      noUsers: '沒有使用者資料。',
+      updatedUser: '使用者已更新。',
       copied: '已複製訂閱 URL。',
       rotated: '訂閱 URL 已重置，舊 URL 已失效。',
       refresh: '刷新',
@@ -97,6 +110,8 @@
       forgot: 'Forgot password',
       resetPassword: 'Reset password',
       email: 'Email',
+      loginIdentifier: 'Email / Nickname',
+      nickname: 'Nickname',
       password: 'Password',
       confirmPassword: 'Confirm password',
       newPassword: 'New password',
@@ -139,6 +154,16 @@
       lastCalendarRequest: 'Last request',
       noCalendarRequests: 'No Calendar app request logs yet.',
       unknownClient: 'Unknown client',
+      adminPanel: 'User management',
+      totalUsers: 'Total users',
+      role: 'Role',
+      emailStatus: 'Email status',
+      verifiedEmail: 'Verified',
+      unverifiedEmail: 'Unverified',
+      lastLogin: 'Last login',
+      createdAt: 'Created',
+      noUsers: 'No users found.',
+      updatedUser: 'User updated.',
       copied: 'Subscription URL copied.',
       rotated: 'Subscription URL reset. The old URL is invalid.',
       refresh: 'Refresh',
@@ -173,6 +198,8 @@
   let credential: Credential = null
   let calendarSubscription: CalendarSubscription = null
   let calendarRequestLogs: CalendarRequestLog[] = []
+  let adminUsers: AdminUser[] = []
+  let adminUserTotal = 0
   let schedules: Schedule[] = []
   let runs: SyncRun[] = []
   let totalHours = 0
@@ -184,6 +211,7 @@
   let resetToken = ''
 
   let email = ''
+  let nickname = ''
   let password = ''
   let confirmPassword = ''
   let newPassword = ''
@@ -236,6 +264,7 @@
       const data = await api<{ user: User }>('/api/me')
       user = data.user
       await Promise.all([loadCredential(), loadCalendarSubscription(), loadCalendarRequestLogs(), loadSchedules(), loadRuns()])
+      if (user.role === 'admin') await loadAdminUsers()
     } catch {
       user = null
     }
@@ -249,7 +278,7 @@
         message = tr('passwordMismatch')
         return
       }
-      await api('/api/auth/register', { method: 'POST', body: JSON.stringify({ email, password, confirmPassword, locale }) })
+      await api('/api/auth/register', { method: 'POST', body: JSON.stringify({ email, nickname, password, confirmPassword, locale }) })
       if (publicConfig.emailVerificationRequired) {
         mode = 'verify'
         message = tr('codeSent')
@@ -317,6 +346,7 @@
       const data = await api<{ user: User }>('/api/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) })
       user = data.user
       await Promise.all([loadCredential(), loadCalendarSubscription(), loadCalendarRequestLogs(), loadSchedules(), loadRuns()])
+      if (user.role === 'admin') await loadAdminUsers()
     } catch (err) {
       message = String((err as Error).message)
     } finally {
@@ -330,6 +360,8 @@
     credential = null
     calendarSubscription = null
     calendarRequestLogs = []
+    adminUsers = []
+    adminUserTotal = 0
     schedules = []
     runs = []
     totalHours = 0
@@ -395,6 +427,12 @@
     calendarRequestLogs = data.logs
   }
 
+  async function loadAdminUsers() {
+    const data = await api<{ total: number; users: AdminUser[] }>('/api/admin/users')
+    adminUserTotal = data.total
+    adminUsers = data.users
+  }
+
   async function rotateCalendarSubscription() {
     loading = true
     message = ''
@@ -428,6 +466,12 @@
   async function deleteRun(run: SyncRun) {
     await api(`/api/sync-runs/${run.id}`, { method: 'DELETE' })
     await loadRuns()
+  }
+
+  async function updateAdminUser(target: AdminUser, patch: Partial<Pick<AdminUser, 'role' | 'nickname' | 'emailVerified'>>) {
+    const data = await api<{ user: AdminUser }>(`/api/admin/users/${target.id}`, { method: 'PATCH', body: JSON.stringify(patch) })
+    adminUsers = adminUsers.map((item) => (item.id === target.id ? data.user : item))
+    message = tr('updatedUser')
   }
 
   function fmtTime(value?: string) {
@@ -503,9 +547,12 @@
       {/if}
 
       {#if mode !== 'reset'}
-        <label>{tr('email')}<input bind:value={email} type="email" autocomplete="email" /></label>
+        <label>{mode === 'login' ? tr('loginIdentifier') : tr('email')}<input bind:value={email} type={mode === 'login' ? 'text' : 'email'} autocomplete={mode === 'login' ? 'username' : 'email'} /></label>
       {/if}
       {#if mode === 'login' || mode === 'register'}
+        {#if mode === 'register'}
+          <label>{tr('nickname')}<input bind:value={nickname} autocomplete="username" /></label>
+        {/if}
         <label>{tr('password')}<input bind:value={password} type="password" autocomplete={mode === 'login' ? 'current-password' : 'new-password'} /></label>
         {#if mode === 'register'}
           <label>{tr('confirmPassword')}<input bind:value={confirmPassword} type="password" autocomplete="new-password" /></label>
@@ -637,6 +684,48 @@
             </div>
           {/if}
         </div>
+
+        {#if user.role === 'admin'}
+          <div class="panel">
+            <div class="panel-title-row">
+              <h3>{tr('adminPanel')}</h3>
+              <button class="ghost small" on:click={loadAdminUsers}>{tr('refresh')}</button>
+            </div>
+            <div class="summary-strip">
+              <span>{tr('totalUsers')}</span>
+              <strong>{adminUserTotal}</strong>
+            </div>
+            {#if adminUsers.length === 0}
+              <p class="muted">{tr('noUsers')}</p>
+            {:else}
+              <div class="admin-user-list">
+                {#each adminUsers as adminUser}
+                  <article>
+                    <div>
+                      <strong>{adminUser.email}</strong>
+                      <span>{tr('nickname')}: {adminUser.nickname || '-'}</span>
+                      <span>{tr('createdAt')}: {new Date(adminUser.createdAt).toLocaleString(locale)}</span>
+                      <span>{tr('lastLogin')}: {adminUser.lastLoginAt ? new Date(adminUser.lastLoginAt).toLocaleString(locale) : '-'}</span>
+                    </div>
+                    <label>{tr('nickname')}
+                      <input value={adminUser.nickname || ''} on:change={(event) => updateAdminUser(adminUser, { nickname: (event.currentTarget as HTMLInputElement).value })} />
+                    </label>
+                    <label>{tr('role')}
+                      <select value={adminUser.role} on:change={(event) => updateAdminUser(adminUser, { role: (event.currentTarget as HTMLSelectElement).value })}>
+                        <option value="user">user</option>
+                        <option value="admin">admin</option>
+                      </select>
+                    </label>
+                    <label class="checkbox-row">
+                      <input type="checkbox" checked={adminUser.emailVerified} on:change={(event) => updateAdminUser(adminUser, { emailVerified: (event.currentTarget as HTMLInputElement).checked })} />
+                      {adminUser.emailVerified ? tr('verifiedEmail') : tr('unverifiedEmail')}
+                    </label>
+                  </article>
+                {/each}
+              </div>
+            {/if}
+          </div>
+        {/if}
       </section>
 
       <section class="panel">

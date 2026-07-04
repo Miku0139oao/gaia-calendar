@@ -365,6 +365,7 @@ header {
 }
 
 .run-list,
+.admin-user-list,
 .request-log-list,
 .schedule-list {
   display: grid;
@@ -372,6 +373,7 @@ header {
 }
 
 .run-list div,
+.admin-user-list article,
 .request-log-list article,
 .schedule-list article {
   display: grid;
@@ -384,6 +386,7 @@ header {
 
 .run-list span,
 .run-list small,
+.admin-user-list span,
 .request-log-list span,
 .request-log-list small,
 .schedule-list span,
@@ -431,6 +434,32 @@ header {
 
 .run-list .marked {
   border-color: var(--accent);
+}
+
+.admin-user-list article {
+  grid-template-columns: minmax(0, 1.3fr) minmax(140px, 0.7fr) minmax(110px, 0.45fr) minmax(140px, 0.55fr);
+  align-items: end;
+}
+
+.admin-user-list article > div {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.admin-user-list article strong {
+  overflow-wrap: anywhere;
+}
+
+.checkbox-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  min-height: 40px;
+}
+
+.checkbox-row input {
+  width: auto;
 }
 
 .run-head {
@@ -504,6 +533,11 @@ header {
   }
 
   .schedule-list article {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-user-list article,
+  .request-log-list article {
     grid-template-columns: 1fr;
   }
 }

@@ -15,6 +15,7 @@ type User struct {
 func (User) Fields() []ent.Field {
 	return []ent.Field{
 		field.String("email").Unique().NotEmpty(),
+		field.String("nickname").Optional().Nillable().Unique(),
 		field.String("password_hash").Sensitive(),
 		field.Bool("email_verified").Default(false),
 		field.String("role").Default("user"),

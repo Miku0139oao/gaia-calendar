@@ -16,6 +16,8 @@ const (
 	FieldID = "id"
 	// FieldEmail holds the string denoting the email field in the database.
 	FieldEmail = "email"
+	// FieldNickname holds the string denoting the nickname field in the database.
+	FieldNickname = "nickname"
 	// FieldPasswordHash holds the string denoting the password_hash field in the database.
 	FieldPasswordHash = "password_hash"
 	// FieldEmailVerified holds the string denoting the email_verified field in the database.
@@ -108,6 +110,7 @@ const (
 var Columns = []string{
 	FieldID,
 	FieldEmail,
+	FieldNickname,
 	FieldPasswordHash,
 	FieldEmailVerified,
 	FieldRole,
@@ -152,6 +155,11 @@ func ByID(opts ...sql.OrderTermOption) OrderOption {
 // ByEmail orders the results by the email field.
 func ByEmail(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldEmail, opts...).ToFunc()
+}
+
+// ByNickname orders the results by the nickname field.
+func ByNickname(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldNickname, opts...).ToFunc()
 }
 
 // ByPasswordHash orders the results by the password_hash field.

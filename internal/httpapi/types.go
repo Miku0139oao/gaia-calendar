@@ -4,6 +4,7 @@ import "time"
 
 type registerRequest struct {
 	Email           string `json:"email"`
+	Nickname        string `json:"nickname,omitempty"`
 	Password        string `json:"password"`
 	ConfirmPassword string `json:"confirmPassword"`
 	Locale          string `json:"locale,omitempty"`
@@ -16,6 +17,7 @@ type verifyRequest struct {
 
 type loginRequest struct {
 	Email    string `json:"email"`
+	Nickname string `json:"nickname,omitempty"`
 	Password string `json:"password"`
 }
 
@@ -42,8 +44,30 @@ type syncRunUpdateRequest struct {
 type userResponse struct {
 	ID            int    `json:"id"`
 	Email         string `json:"email"`
+	Nickname      string `json:"nickname,omitempty"`
 	EmailVerified bool   `json:"emailVerified"`
 	Role          string `json:"role"`
+}
+
+type adminUserResponse struct {
+	ID            int        `json:"id"`
+	Email         string     `json:"email"`
+	Nickname      string     `json:"nickname,omitempty"`
+	EmailVerified bool       `json:"emailVerified"`
+	Role          string     `json:"role"`
+	CreatedAt     time.Time  `json:"createdAt"`
+	LastLoginAt   *time.Time `json:"lastLoginAt,omitempty"`
+}
+
+type adminUsersResponse struct {
+	Total int                 `json:"total"`
+	Users []adminUserResponse `json:"users"`
+}
+
+type adminUserUpdateRequest struct {
+	Role          *string `json:"role,omitempty"`
+	Nickname      *string `json:"nickname,omitempty"`
+	EmailVerified *bool   `json:"emailVerified,omitempty"`
 }
 
 type publicConfigResponse struct {

@@ -50,6 +50,26 @@ func (_u *UserUpdate) SetNillableEmail(v *string) *UserUpdate {
 	return _u
 }
 
+// SetNickname sets the "nickname" field.
+func (_u *UserUpdate) SetNickname(v string) *UserUpdate {
+	_u.mutation.SetNickname(v)
+	return _u
+}
+
+// SetNillableNickname sets the "nickname" field if the given value is not nil.
+func (_u *UserUpdate) SetNillableNickname(v *string) *UserUpdate {
+	if v != nil {
+		_u.SetNickname(*v)
+	}
+	return _u
+}
+
+// ClearNickname clears the value of the "nickname" field.
+func (_u *UserUpdate) ClearNickname() *UserUpdate {
+	_u.mutation.ClearNickname()
+	return _u
+}
+
 // SetPasswordHash sets the "password_hash" field.
 func (_u *UserUpdate) SetPasswordHash(v string) *UserUpdate {
 	_u.mutation.SetPasswordHash(v)
@@ -486,6 +506,12 @@ func (_u *UserUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	if value, ok := _u.mutation.Email(); ok {
 		_spec.SetField(user.FieldEmail, field.TypeString, value)
 	}
+	if value, ok := _u.mutation.Nickname(); ok {
+		_spec.SetField(user.FieldNickname, field.TypeString, value)
+	}
+	if _u.mutation.NicknameCleared() {
+		_spec.ClearField(user.FieldNickname, field.TypeString)
+	}
 	if value, ok := _u.mutation.PasswordHash(); ok {
 		_spec.SetField(user.FieldPasswordHash, field.TypeString, value)
 	}
@@ -898,6 +924,26 @@ func (_u *UserUpdateOne) SetNillableEmail(v *string) *UserUpdateOne {
 	if v != nil {
 		_u.SetEmail(*v)
 	}
+	return _u
+}
+
+// SetNickname sets the "nickname" field.
+func (_u *UserUpdateOne) SetNickname(v string) *UserUpdateOne {
+	_u.mutation.SetNickname(v)
+	return _u
+}
+
+// SetNillableNickname sets the "nickname" field if the given value is not nil.
+func (_u *UserUpdateOne) SetNillableNickname(v *string) *UserUpdateOne {
+	if v != nil {
+		_u.SetNickname(*v)
+	}
+	return _u
+}
+
+// ClearNickname clears the value of the "nickname" field.
+func (_u *UserUpdateOne) ClearNickname() *UserUpdateOne {
+	_u.mutation.ClearNickname()
 	return _u
 }
 
@@ -1366,6 +1412,12 @@ func (_u *UserUpdateOne) sqlSave(ctx context.Context) (_node *User, err error) {
 	}
 	if value, ok := _u.mutation.Email(); ok {
 		_spec.SetField(user.FieldEmail, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.Nickname(); ok {
+		_spec.SetField(user.FieldNickname, field.TypeString, value)
+	}
+	if _u.mutation.NicknameCleared() {
+		_spec.ClearField(user.FieldNickname, field.TypeString)
 	}
 	if value, ok := _u.mutation.PasswordHash(); ok {
 		_spec.SetField(user.FieldPasswordHash, field.TypeString, value)

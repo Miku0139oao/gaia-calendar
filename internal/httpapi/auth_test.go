@@ -87,6 +87,62 @@ func TestRegisterWithoutEmailVerificationMarksUserVerified(t *testing.T) {
 	}
 }
 
+func TestFirstRegisteredUserBecomesAdmin(t *testing.T) {
+	db := openHTTPAPITestDB(t, "first-user-admin.db")
+	defer db.Close()
+	server := New(config.Config{
+		BaseURL:                   "http://localhost:8080",
+		SessionSecret:             "dev-session-secret-change-me",
+		CredentialEncryptionKey:   "dev-encryption-secret-change-me",
+		EmailVerificationRequired: false,
+	}, db)
+
+	for _, body := range []string{
+		`{"email":"first@example.com","password":"password123","confirmPassword":"password123"}`,
+		`{"email":"second@example.com","password":"password123","confirmPassword":"password123"}`,
+	} {
+		req := httptest.NewRequest(http.MethodPost, "/api/auth/register", bytes.NewBufferString(body))
+		res := httptest.NewRecorder()
+		server.Handler().ServeHTTP(res, req)
+		if res.Code != http.StatusCreated {
+			t.Fatalf("register status = %d, body = %s", res.Code, res.Body.String())
+		}
+	}
+	first := db.User.Query().Where(user.Email("first@example.com")).OnlyX(t.Context())
+	second := db.User.Query().Where(user.Email("second@example.com")).OnlyX(t.Context())
+	if first.Role != "admin" {
+		t.Fatalf("first user role = %q, want admin", first.Role)
+	}
+	if second.Role != "user" {
+		t.Fatalf("second user role = %q, want user", second.Role)
+	}
+}
+
+func TestLoginAcceptsNickname(t *testing.T) {
+	db := openHTTPAPITestDB(t, "login-nickname.db")
+	defer db.Close()
+	server := New(config.Config{
+		BaseURL:                   "http://localhost:8080",
+		SessionSecret:             "dev-session-secret-change-me",
+		CredentialEncryptionKey:   "dev-encryption-secret-change-me",
+		EmailVerificationRequired: false,
+	}, db)
+
+	registerReq := httptest.NewRequest(http.MethodPost, "/api/auth/register", bytes.NewBufferString(`{"email":"nick@example.com","nickname":"miku","password":"password123","confirmPassword":"password123"}`))
+	registerRes := httptest.NewRecorder()
+	server.Handler().ServeHTTP(registerRes, registerReq)
+	if registerRes.Code != http.StatusCreated {
+		t.Fatalf("register status = %d, body = %s", registerRes.Code, registerRes.Body.String())
+	}
+
+	loginReq := httptest.NewRequest(http.MethodPost, "/api/auth/login", bytes.NewBufferString(`{"email":"miku","password":"password123"}`))
+	loginRes := httptest.NewRecorder()
+	server.Handler().ServeHTTP(loginRes, loginReq)
+	if loginRes.Code != http.StatusOK {
+		t.Fatalf("login with nickname status = %d, body = %s", loginRes.Code, loginRes.Body.String())
+	}
+}
+
 func TestPublicConfigReportsEmailVerificationRequirement(t *testing.T) {
 	db := openHTTPAPITestDB(t, "public-config.db")
 	defer db.Close()

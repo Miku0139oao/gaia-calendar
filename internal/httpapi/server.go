@@ -104,6 +104,8 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("POST /api/auth/reset-password", s.handleResetPassword)
 	s.mux.Handle("POST /api/auth/logout", s.auth(http.HandlerFunc(s.handleLogout)))
 	s.mux.Handle("GET /api/me", s.auth(http.HandlerFunc(s.handleMe)))
+	s.mux.Handle("GET /api/admin/users", s.auth(s.admin(http.HandlerFunc(s.handleAdminUsers))))
+	s.mux.Handle("PATCH /api/admin/users/", s.auth(s.admin(http.HandlerFunc(s.handleAdminUpdateUser))))
 	s.mux.Handle("GET /api/gaia-credential", s.auth(http.HandlerFunc(s.handleGetGaiaCredential)))
 	s.mux.Handle("PUT /api/gaia-credential", s.auth(http.HandlerFunc(s.handleSaveGaiaCredential)))
 	s.mux.Handle("GET /api/calendar-subscription", s.auth(http.HandlerFunc(s.handleGetCalendarSubscription)))
@@ -166,7 +168,11 @@ func writeError(w http.ResponseWriter, status int, message string) {
 }
 
 func userDTO(u *ent.User) userResponse {
-	return userResponse{ID: u.ID, Email: u.Email, EmailVerified: u.EmailVerified, Role: u.Role}
+	nickname := ""
+	if u.Nickname != nil {
+		nickname = *u.Nickname
+	}
+	return userResponse{ID: u.ID, Email: u.Email, Nickname: nickname, EmailVerified: u.EmailVerified, Role: u.Role}
 }
 
 func (s *Server) setSessionCookie(w http.ResponseWriter, token string, expires time.Time) {
@@ -209,6 +215,23 @@ func normalizeEmail(v string) string {
 
 func validPassword(v string) bool {
 	return len(v) >= 8
+}
+
+func normalizeNickname(v string) string {
+	return strings.ToLower(strings.TrimSpace(v))
+}
+
+func validNickname(v string) bool {
+	if len(v) < 3 || len(v) > 32 {
+		return false
+	}
+	for _, r := range v {
+		if (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') || r == '_' || r == '.' || r == '-' {
+			continue
+		}
+		return false
+	}
+	return true
 }
 
 func logHTTPError(err error) {

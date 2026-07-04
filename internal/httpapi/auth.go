@@ -24,6 +24,11 @@ func (s *Server) handleRegister(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, validationError)
 		return
 	}
+	nickname := normalizeNickname(req.Nickname)
+	if req.Nickname != "" && !validNickname(nickname) {
+		writeError(w, http.StatusBadRequest, "nickname must be 3-32 characters and use letters, numbers, underscore, dot, or dash")
+		return
+	}
 	exists, err := s.db.User.Query().Where(user.Email(email)).Exist(r.Context())
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "failed to check user")
@@ -32,6 +37,15 @@ func (s *Server) handleRegister(w http.ResponseWriter, r *http.Request) {
 	if exists {
 		writeError(w, http.StatusConflict, "email is already registered")
 		return
+	}
+	userCount, err := s.db.User.Query().Count(r.Context())
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to count users")
+		return
+	}
+	role := "user"
+	if userCount == 0 {
+		role = "admin"
 	}
 	passwordHash, err := security.HashPassword(req.Password)
 	if err != nil {
@@ -42,7 +56,11 @@ func (s *Server) handleRegister(w http.ResponseWriter, r *http.Request) {
 		SetEmail(email).
 		SetPasswordHash(passwordHash).
 		SetEmailVerified(!s.cfg.EmailVerificationRequired).
+		SetRole(role).
 		Save(r.Context())
+	if err == nil && nickname != "" {
+		u, err = s.db.User.UpdateOne(u).SetNickname(nickname).Save(r.Context())
+	}
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "failed to create user")
 		return
@@ -126,7 +144,14 @@ func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "invalid JSON")
 		return
 	}
-	u, err := s.db.User.Query().Where(user.Email(normalizeEmail(req.Email))).Only(r.Context())
+	identifier := normalizeEmail(req.Email)
+	if identifier == "" {
+		identifier = normalizeEmail(req.Nickname)
+	}
+	nickname := normalizeNickname(identifier)
+	u, err := s.db.User.Query().
+		Where(user.Or(user.Email(identifier), user.Nickname(nickname))).
+		Only(r.Context())
 	if err != nil || !security.CheckPassword(u.PasswordHash, req.Password) {
 		writeError(w, http.StatusUnauthorized, "invalid email or password")
 		return
