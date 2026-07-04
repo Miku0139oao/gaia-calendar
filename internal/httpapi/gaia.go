@@ -396,10 +396,20 @@ func cleanClock(value string) string {
 
 func (s *Server) handleSyncRuns(w http.ResponseWriter, r *http.Request) {
 	u := currentUser(r)
+	limit := queryInt(r, "limit", 10, 1, 50)
+	offset := queryInt(r, "offset", 0, 0, 10000)
+	total, err := s.db.ScheduleSyncRun.Query().
+		Where(schedulesyncrun.HasUserWith(user.ID(u.ID))).
+		Count(r.Context())
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to count sync runs")
+		return
+	}
 	runs, err := s.db.ScheduleSyncRun.Query().
 		Where(schedulesyncrun.HasUserWith(user.ID(u.ID))).
 		Order(ent.Desc(schedulesyncrun.FieldStartedAt)).
-		Limit(20).
+		Limit(limit).
+		Offset(offset).
 		All(r.Context())
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "failed to load sync runs")
@@ -418,7 +428,31 @@ func (s *Server) handleSyncRuns(w http.ResponseWriter, r *http.Request) {
 	for _, run := range runs {
 		out = append(out, syncRun{ID: run.ID, StartedAt: run.StartedAt, FinishedAt: run.FinishedAt, Status: run.Status, ErrorMessage: run.ErrorMessage, EntryCount: run.EntryCount, Marked: run.MarkedAt != nil})
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"runs": out})
+	writeJSON(w, http.StatusOK, map[string]any{
+		"runs":    out,
+		"total":   total,
+		"limit":   limit,
+		"offset":  offset,
+		"hasMore": offset+len(out) < total,
+	})
+}
+
+func queryInt(r *http.Request, key string, fallback, min, max int) int {
+	value := strings.TrimSpace(r.URL.Query().Get(key))
+	if value == "" {
+		return fallback
+	}
+	parsed, err := strconv.Atoi(value)
+	if err != nil {
+		return fallback
+	}
+	if parsed < min {
+		return min
+	}
+	if parsed > max {
+		return max
+	}
+	return parsed
 }
 
 func (s *Server) handleUpdateSyncRun(w http.ResponseWriter, r *http.Request) {

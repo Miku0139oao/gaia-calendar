@@ -25,7 +25,7 @@
       forgot: '忘記密碼',
       resetPassword: '重設密碼',
       email: 'Email',
-      loginIdentifier: 'Email / Nickname',
+      loginIdentifier: 'Email / username',
       nickname: 'Nickname',
       password: '密碼',
       confirmPassword: '確認密碼',
@@ -82,6 +82,7 @@
       copied: '已複製訂閱 URL。',
       rotated: '訂閱 URL 已重置，舊 URL 已失效。',
       refresh: '刷新',
+      loadMore: '載入更多',
       mark: '標記',
       unmark: '取消標記',
       deleteRun: '刪除',
@@ -110,7 +111,7 @@
       forgot: 'Forgot password',
       resetPassword: 'Reset password',
       email: 'Email',
-      loginIdentifier: 'Email / Nickname',
+      loginIdentifier: 'Email / username',
       nickname: 'Nickname',
       password: 'Password',
       confirmPassword: 'Confirm password',
@@ -167,6 +168,7 @@
       copied: 'Subscription URL copied.',
       rotated: 'Subscription URL reset. The old URL is invalid.',
       refresh: 'Refresh',
+      loadMore: 'Load more',
       mark: 'Mark',
       unmark: 'Unmark',
       deleteRun: 'Delete',
@@ -202,6 +204,9 @@
   let adminUserTotal = 0
   let schedules: Schedule[] = []
   let runs: SyncRun[] = []
+  let runsTotal = 0
+  let runsHasMore = false
+  const runsPageSize = 10
   let totalHours = 0
   let publicConfig: PublicConfig = { emailVerificationRequired: true }
   let mode: AuthMode = 'login'
@@ -263,7 +268,7 @@
     try {
       const data = await api<{ user: User }>('/api/me')
       user = data.user
-      await Promise.all([loadCredential(), loadCalendarSubscription(), loadCalendarRequestLogs(), loadSchedules(), loadRuns()])
+      await Promise.all([loadCredential(), loadCalendarSubscription(), loadCalendarRequestLogs(), loadSchedules(), loadRuns(true)])
       if (user.role === 'admin') await loadAdminUsers()
     } catch {
       user = null
@@ -345,7 +350,7 @@
     try {
       const data = await api<{ user: User }>('/api/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) })
       user = data.user
-      await Promise.all([loadCredential(), loadCalendarSubscription(), loadCalendarRequestLogs(), loadSchedules(), loadRuns()])
+      await Promise.all([loadCredential(), loadCalendarSubscription(), loadCalendarRequestLogs(), loadSchedules(), loadRuns(true)])
       if (user.role === 'admin') await loadAdminUsers()
     } catch (err) {
       message = String((err as Error).message)
@@ -364,6 +369,8 @@
     adminUserTotal = 0
     schedules = []
     runs = []
+    runsTotal = 0
+    runsHasMore = false
     totalHours = 0
   }
 
@@ -396,11 +403,11 @@
     message = ''
     try {
       const data = await api<{ entryCount: number }>('/api/schedules/sync', { method: 'POST' })
-      await Promise.all([loadSchedules(), loadRuns(), loadCredential()])
+      await Promise.all([loadSchedules(), loadRuns(true), loadCredential()])
       message = `${tr('syncedPrefix')} ${data.entryCount} ${tr('syncedSuffix')}`
     } catch (err) {
       message = String((err as Error).message)
-      await loadRuns()
+      await loadRuns(true)
     } finally {
       loading = false
     }
@@ -412,9 +419,12 @@
     totalHours = data.totalHours || 0
   }
 
-  async function loadRuns() {
-    const data = await api<{ runs: SyncRun[] }>('/api/sync-runs')
-    runs = data.runs
+  async function loadRuns(reset = false) {
+    const offset = reset ? 0 : runs.length
+    const data = await api<{ runs: SyncRun[]; total: number; hasMore: boolean }>(`/api/sync-runs?limit=${runsPageSize}&offset=${offset}`)
+    runs = reset ? data.runs : [...runs, ...data.runs]
+    runsTotal = data.total || runs.length
+    runsHasMore = data.hasMore
   }
 
   async function loadCalendarSubscription() {
@@ -460,12 +470,12 @@
 
   async function setRunMarked(run: SyncRun, marked: boolean) {
     await api(`/api/sync-runs/${run.id}`, { method: 'PATCH', body: JSON.stringify({ marked }) })
-    await loadRuns()
+    await loadRuns(true)
   }
 
   async function deleteRun(run: SyncRun) {
     await api(`/api/sync-runs/${run.id}`, { method: 'DELETE' })
-    await loadRuns()
+    await loadRuns(true)
   }
 
   async function updateAdminUser(target: AdminUser, patch: Partial<Pick<AdminUser, 'role' | 'nickname' | 'emailVerified'>>) {
@@ -662,13 +672,16 @@
         <div class="panel">
           <div class="panel-title-row">
             <h3>{tr('syncHistory')}</h3>
-            <button class="ghost small" on:click={loadRuns}>{tr('refresh')}</button>
+            <button class="ghost small" on:click={() => loadRuns(true)}>{tr('refresh')}</button>
           </div>
+          {#if runsTotal > 0}
+            <p class="muted">{runs.length} / {runsTotal}</p>
+          {/if}
           {#if runs.length === 0}
             <p class="muted">{tr('noRuns')}</p>
           {:else}
             <div class="run-list">
-              {#each runs.slice(0, 5) as run}
+              {#each runs as run}
                 <div class:marked={run.marked}>
                   <div class="run-head">
                     <strong>{run.status}</strong>
@@ -682,51 +695,54 @@
                 </div>
               {/each}
             </div>
+            {#if runsHasMore}
+              <button class="ghost" on:click={() => loadRuns(false)}>{tr('loadMore')}</button>
+            {/if}
           {/if}
         </div>
-
-        {#if user.role === 'admin'}
-          <div class="panel">
-            <div class="panel-title-row">
-              <h3>{tr('adminPanel')}</h3>
-              <button class="ghost small" on:click={loadAdminUsers}>{tr('refresh')}</button>
-            </div>
-            <div class="summary-strip">
-              <span>{tr('totalUsers')}</span>
-              <strong>{adminUserTotal}</strong>
-            </div>
-            {#if adminUsers.length === 0}
-              <p class="muted">{tr('noUsers')}</p>
-            {:else}
-              <div class="admin-user-list">
-                {#each adminUsers as adminUser}
-                  <article>
-                    <div>
-                      <strong>{adminUser.email}</strong>
-                      <span>{tr('nickname')}: {adminUser.nickname || '-'}</span>
-                      <span>{tr('createdAt')}: {new Date(adminUser.createdAt).toLocaleString(locale)}</span>
-                      <span>{tr('lastLogin')}: {adminUser.lastLoginAt ? new Date(adminUser.lastLoginAt).toLocaleString(locale) : '-'}</span>
-                    </div>
-                    <label>{tr('nickname')}
-                      <input value={adminUser.nickname || ''} on:change={(event) => updateAdminUser(adminUser, { nickname: (event.currentTarget as HTMLInputElement).value })} />
-                    </label>
-                    <label>{tr('role')}
-                      <select value={adminUser.role} on:change={(event) => updateAdminUser(adminUser, { role: (event.currentTarget as HTMLSelectElement).value })}>
-                        <option value="user">user</option>
-                        <option value="admin">admin</option>
-                      </select>
-                    </label>
-                    <label class="checkbox-row">
-                      <input type="checkbox" checked={adminUser.emailVerified} on:change={(event) => updateAdminUser(adminUser, { emailVerified: (event.currentTarget as HTMLInputElement).checked })} />
-                      {adminUser.emailVerified ? tr('verifiedEmail') : tr('unverifiedEmail')}
-                    </label>
-                  </article>
-                {/each}
-              </div>
-            {/if}
-          </div>
-        {/if}
       </section>
+
+      {#if user.role === 'admin'}
+        <section class="panel admin-panel">
+          <div class="panel-title-row">
+            <h3>{tr('adminPanel')}</h3>
+            <button class="ghost small" on:click={loadAdminUsers}>{tr('refresh')}</button>
+          </div>
+          <div class="summary-strip">
+            <span>{tr('totalUsers')}</span>
+            <strong>{adminUserTotal}</strong>
+          </div>
+          {#if adminUsers.length === 0}
+            <p class="muted">{tr('noUsers')}</p>
+          {:else}
+            <div class="admin-user-list">
+              {#each adminUsers as adminUser}
+                <article>
+                  <div>
+                    <strong>{adminUser.email}</strong>
+                    <span>{tr('nickname')}: {adminUser.nickname || '-'}</span>
+                    <span>{tr('createdAt')}: {new Date(adminUser.createdAt).toLocaleString(locale)}</span>
+                    <span>{tr('lastLogin')}: {adminUser.lastLoginAt ? new Date(adminUser.lastLoginAt).toLocaleString(locale) : '-'}</span>
+                  </div>
+                  <label>{tr('nickname')}
+                    <input value={adminUser.nickname || ''} on:change={(event) => updateAdminUser(adminUser, { nickname: (event.currentTarget as HTMLInputElement).value })} />
+                  </label>
+                  <label>{tr('role')}
+                    <select value={adminUser.role} on:change={(event) => updateAdminUser(adminUser, { role: (event.currentTarget as HTMLSelectElement).value })}>
+                      <option value="user">user</option>
+                      <option value="admin">admin</option>
+                    </select>
+                  </label>
+                  <label class="checkbox-row">
+                    <input type="checkbox" checked={adminUser.emailVerified} on:change={(event) => updateAdminUser(adminUser, { emailVerified: (event.currentTarget as HTMLInputElement).checked })} />
+                    {adminUser.emailVerified ? tr('verifiedEmail') : tr('unverifiedEmail')}
+                  </label>
+                </article>
+              {/each}
+            </div>
+          {/if}
+        </section>
+      {/if}
 
       <section class="panel">
         <div class="panel-title-row">
